@@ -34,9 +34,8 @@ int main(){
             if(find_type_index(lists, list_count, hashs, hash_count, bitmaps, bitmap_count, arg[1], &type, &index)){
                 if(type == LIST){
                     struct list_elem *p;
-                    for (p=list_begin(lists[index].ptr); p!=list_end(lists[index].ptr); p=list_next(p)) {
+                    for (p=list_begin(lists[index].ptr); p!=list_end(lists[index].ptr); p=list_next(p))
                         printf("%d ", list_entry(p, struct list_item, elem)->data);
-                    }
                     printf("\n");
                 }
             }
@@ -60,15 +59,15 @@ int main(){
         // --------------------
         // LIST COMMANDS
         // --------------------
-        else if(!strcmp(arg[0], "list_push_front")){
-             
-        }     
-        else if(!strcmp(arg[0], "list_push_back")){
+        else if(!strcmp(arg[0], "list_push_front") || !strcmp(arg[0], "list_push_back")){
             index = find_index(lists, list_count, LIST, arg[1]);
-            temp=(struct list_item*)malloc(sizeof(struct list_item));
-			temp->data=atoi(arg[2]);
-			list_push_back(lists[index].ptr, &(temp->elem));
-        }   
+            temp = (struct list_item*)malloc(sizeof(struct list_item));
+            temp->data = atoi(arg[2]);
+            if(!strcmp(arg[0], "list_push_front"))
+                list_push_front(lists[index].ptr, &(temp->elem));
+            else if(!strcmp(arg[0], "list_push_back"))
+                list_push_back(lists[index].ptr, &(temp->elem));
+        }
         else if(!strcmp(arg[0], "list_pop_back")){
 
         }   
