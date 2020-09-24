@@ -10,7 +10,8 @@ int main(){
     int list_count, hash_count, bitmap_count;
     list_count = hash_count = bitmap_count = 0;
 
-    struct list_item *temp;
+    struct list_item *temp_list_item;
+    struct list_elem *temp_list_elem;
 
     while(1) {
         fgets(command, sizeof command, stdin);
@@ -61,19 +62,19 @@ int main(){
         // --------------------
         else if(!strcmp(arg[0], "list_push_front") || !strcmp(arg[0], "list_push_back")){
             index = find_index(lists, list_count, LIST, arg[1]);
-            temp = (struct list_item*)malloc(sizeof(struct list_item));
-            temp->data = atoi(arg[2]);
+            temp_list_item = (struct list_item*)malloc(sizeof(struct list_item));
+            temp_list_item->data = atoi(arg[2]);
             if(!strcmp(arg[0], "list_push_front"))
-                list_push_front(lists[index].ptr, &(temp->elem));
+                list_push_front(lists[index].ptr, &(temp_list_item->elem));
             else if(!strcmp(arg[0], "list_push_back"))
-                list_push_back(lists[index].ptr, &(temp->elem));
+                list_push_back(lists[index].ptr, &(temp_list_item->elem));
         }
         else if(!strcmp(arg[0], "list_pop_back") || !strcmp(arg[0], "list_pop_front")){
             index = find_index(lists, list_count, LIST, arg[1]);
             if(!strcmp(arg[0], "list_pop_front"))
-                temp = list_pop_front(lists[index].ptr);
+                temp_list_elem = list_pop_front(lists[index].ptr);
             else if(!strcmp(arg[0], "list_pop_back"))
-                temp = list_pop_back(lists[index].ptr);
+                temp_list_elem = list_pop_back(lists[index].ptr);
         }   
         
         else if(!strcmp(arg[0], "list_front")){
@@ -121,6 +122,8 @@ int main(){
         else if(!strcmp(arg[0], "list_min")){
 
         }
+        else
+            printf("Invalid command\n");
     }
 
 
