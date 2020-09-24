@@ -91,7 +91,8 @@ int main(){
 
         }
         else if(!strcmp(arg[0], "list_swap")){
-
+            index = find_index(lists, list_count, LIST, arg[1]);
+            list_swap((lists[index].ptr)->head.next, (lists[index].ptr)->head.next->next);
         }
         else if(!strcmp(arg[0], "list_insert")){
 

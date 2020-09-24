@@ -1,3 +1,6 @@
+#ifndef __MAIN_H
+#define __MAIN_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,3 +48,6 @@ typedef struct my_bitmap {
 int find_type_index(my_list* lists, int list_count, my_hash* hashs, int hash_count, my_bitmap* bitmaps, int bitmap_count, char* name, int* type, int* index);
 int find_index(void* , int , int , char* );
 void free_array(void* arr, int len, int type,int index);
+
+
+#endif
