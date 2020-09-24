@@ -78,10 +78,14 @@ int main(){
         }   
         
         else if(!strcmp(arg[0], "list_front")){
-
+            index = find_index(lists, list_count, LIST, arg[1]);
+            temp_list_elem = list_front(lists[index].ptr);
+            printf("%d\n",((list_item*)temp_list_elem)->data);
         }
         else if(!strcmp(arg[0], "list_back")){
-
+            index = find_index(lists, list_count, LIST, arg[1]);
+            temp_list_elem = list_back(lists[index].ptr);
+            printf("%d\n",((list_item*)temp_list_elem)->data);
         }
         else if(!strcmp(arg[0], "list_shuffle")){
 
