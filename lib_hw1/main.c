@@ -68,12 +68,14 @@ int main(){
             else if(!strcmp(arg[0], "list_push_back"))
                 list_push_back(lists[index].ptr, &(temp->elem));
         }
-        else if(!strcmp(arg[0], "list_pop_back")){
-
+        else if(!strcmp(arg[0], "list_pop_back") || !strcmp(arg[0], "list_pop_front")){
+            index = find_index(lists, list_count, LIST, arg[1]);
+            if(!strcmp(arg[0], "list_pop_front"))
+                temp = list_pop_front(lists[index].ptr);
+            else if(!strcmp(arg[0], "list_pop_back"))
+                temp = list_pop_back(lists[index].ptr);
         }   
-        else if(!strcmp(arg[0], "list_pop_front")){
-
-        }
+        
         else if(!strcmp(arg[0], "list_front")){
 
         }
