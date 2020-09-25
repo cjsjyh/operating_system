@@ -1,7 +1,9 @@
 #include "list.h"
+#include "main.h"
+#include <stdlib.h>
+#include <time.h>
 #include <assert.h>	// Instead of	#include "../debug.h"
 #define ASSERT(CONDITION) assert(CONDITION)	// patched for proj0-2
-
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
    last element.  The `prev' link of the front header is null, as
@@ -533,20 +535,49 @@ list_min (struct list *list, list_less_func *less, void *aux)
 }
 
 void list_swap(struct list_elem *a, struct list_elem *b){
-  struct list_elem temp;
-  int data = ((list_item*)b)->data;
-  temp.next = b->next;
-  temp.prev = b->prev;
-  
-  ((list_item*)b)->data = ((list_item*)a)->data;
-  b->next = a->next;
-  b->prev = a->prev;
+  if(a == b)
+    return;
+  int isNext = FALSE;  
+  if(a->next == b)
+    isNext = TRUE;
 
-  ((list_item*)a)->data = data;
-  a->prev = temp.prev;
+  struct list_elem temp;
+  temp.next = b->next;
+  temp.prev = b->prev;  
+  
+  if(!isNext)
+    b->next = a->next;
+  else
+    b->next = a;
+  b->prev = a->prev;
+  b->prev->next = b;
+  b->next->prev = b;
+
+  if(!isNext)
+    a->prev = temp.prev;
+  else
+    a->prev = b;
   a->next = temp.next;
+  a->next->prev = a;
+  a->prev->next = a;
 }
 
 void list_shuffle(struct list *list){
-
+  int i, num1, num2, temp;
+  struct list_elem *first, *second;
+  int size = (int)list_size(list);
+  srand((unsigned int)time(NULL));
+  for(i = 0; i<(int)(size/2); i++){
+    num1 = (int)rand() % size;
+    while(num1 == (num2 = (int)rand() % size));
+    if(num1 > num2){
+      temp = num1;
+      num1 = num2;
+      num2 = temp;
+    }
+    first = list_get_element_at(list->head.next, num1);
+    second = list_get_element_at(list->head.next, num2);
+    list_swap(first, second);
+  }
+  
 }

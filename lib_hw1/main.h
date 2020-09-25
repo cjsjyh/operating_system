@@ -47,7 +47,9 @@ typedef struct my_bitmap {
 
 int find_type_index(my_list* lists, int list_count, my_hash* hashs, int hash_count, my_bitmap* bitmaps, int bitmap_count, char* name, int* type, int* index);
 int find_index(void* , int , int , char* );
+struct list_elem* list_get_element_at(struct list_elem* first, int index);
+struct list_elem* list_find_element(struct list_elem* first, int data);
 void free_array(void* arr, int len, int type,int index);
-
+bool custom_list_less_func(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 #endif

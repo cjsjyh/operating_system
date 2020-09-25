@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -W
 TARGET = testlib
-OBJECTS = hex_dump.o hash.o bitmap.o list.o main.o
+OBJECTS = hex_dump.o hash.o bitmap.o list.o main.o hash.o
 
 all = $(TARGET)
 
