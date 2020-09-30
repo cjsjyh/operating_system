@@ -1,4 +1,55 @@
+
+=========================
+Hash
+=========================
+create hashtable hash0
+dumpdata hash0
+delete hash0
+
+dumpdata hash0
+hash_insert hash0 -10
+hash_apply hash0 square
+hash_delete hash0 10
+hash_empty hash0
+hash_size hash0
+hash_clear hash0
+hash_find hash0 0
+hash_replace hash0 -1000
+
+=========================
+bitmap
+=========================
+quit
+dumpdata bm0
+delete bm0
+create bitmap bm0 16
+
+bitmap_mark bm0 15 
+bitmap_set_all bm0 false
+bitmap_set bm0 15 true
+bitmap_set_multiple bm0 7 7 true
+
+bitmap_dump bm0
+bitmap_all bm0 0 16
+bitmap_any bm0 0 16
+
+bitmap_reset bm0 15 
+
+bitmap_contains bm0 6 3 true
+bitmap_expand bm0 2
+bitmap_flip bm0 10
+
+bitmap_count bm0 2 10 false
+bitmap_none bm0 0 16
+bitmap_scan bm0 0 5 false
+bitmap_scan_and_flip bm0 0 5 false
+bitmap_size bm9
+bitmap_test bm0 10
+
+
+=========================
 List
+=========================
 create list list0
 dumpdata list0
 delete list0
@@ -26,8 +77,5 @@ list_max
 list_min
 
 quit
-
-
-
 
 
