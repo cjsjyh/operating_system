@@ -430,3 +430,15 @@ remove_elem (struct hash *h, struct hash_elem *e)
   list_remove (&e->list_elem);
 }
 
+unsigned hash_int_2(int i) {
+	int temp = i;
+  int cnt = 0;
+
+	if (temp<0) temp = temp * (-1);
+	while (temp>0) {
+		if (temp % 2 == 1) cnt++;
+		temp = temp / 2;
+	} // 이진수로 변환했을 때 1의 개수를 셈
+
+	return cnt % 4;
+}

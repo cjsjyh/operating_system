@@ -6,7 +6,6 @@ create hashtable hash0
 dumpdata hash0
 delete hash0
 
-dumpdata hash0
 hash_insert hash0 -10
 hash_apply hash0 square
 hash_delete hash0 10

@@ -567,7 +567,7 @@ void list_shuffle(struct list *list){
   struct list_elem *first, *second;
   int size = (int)list_size(list);
   srand((unsigned int)time(NULL));
-  for(i = 0; i<(int)(size/2); i++){
+  for(i = 0; i<(int)size; i++){
     num1 = (int)rand() % size;
     while(num1 == (num2 = (int)rand() % size));
     if(num1 > num2){

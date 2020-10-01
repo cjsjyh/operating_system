@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -W
+CFLAGS = -w
 TARGET = testlib
 OBJECTS = hex_dump.o hash.o bitmap.o list.o main.o hash.o
 

@@ -10,9 +10,11 @@ int main(){
     int list_cnt, hash_cnt, bitmap_cnt;
     list_cnt = hash_cnt = bitmap_cnt = 0;
 
-    struct list_item *temp_list_item;
+    list_item *temp_list_item;
     struct list_elem *temp_list_elem;
     struct bitmap *temp_bitmap;
+    hash_item* temp_hash_item;
+    struct hash_elem *temp_hash_elem;
 
     while(1) {
         fgets(command, sizeof command, stdin);
@@ -23,11 +25,6 @@ int main(){
         // --------------------
         if (!strcmp(arg[0], "quit")){
             return 0;
-        }
-        else if(!strcmp(arg[0], "test")){
-            printf("[Count: %d]\n",list_cnt);
-            for(int i =0; i<20; i++)
-                printf("%s\n",lists[i].name);
         }
         else if(!strcmp(arg[0], "create")){
             if(!strcmp(arg[1], "list")){
@@ -40,6 +37,12 @@ int main(){
                 temp_bitmap = bitmap_create(atoi(arg[3]));
                 bitmaps[bitmap_cnt].ptr = temp_bitmap;
                 strcpy(bitmaps[bitmap_cnt++].name, arg[2]);
+            }
+            else if(!strcmp(arg[1], "hashtable")){
+                struct hash* new_hash = (struct hash*)malloc(sizeof(struct hash));
+                hash_init(new_hash, custom_hash_hash_func, custom_hash_less_func, NULL);
+                hashs[hash_cnt].ptr = new_hash;
+                strcpy(hashs[hash_cnt++].name, arg[2]);
             }
         }
         else if(!strcmp(arg[0], "dumpdata")){
@@ -59,15 +62,25 @@ int main(){
                     }
                     printf("\n");
                 }
+                else if(type == HASH){
+                    struct hash_iterator i;
+                    hash_first (&i, hashs[index].ptr);
+                    while(hash_next(&i)){
+                        hash_item* temp_hash_item = hash_entry(hash_cur(&i), hash_item, elem);
+                        printf("%d ", temp_hash_item->data);
+                    }
+                    if(!hash_empty(hashs[index].ptr))
+                        printf("\n");
+                }
             }
         }
         else if(!strcmp(arg[0], "delete")){
             if(find_type_index(lists, list_cnt, hashs, hash_cnt, bitmaps, bitmap_cnt, arg[1], &type, &index)){
-                if(type == 0)
+                if(type == LIST)
                     free_array(lists, list_cnt--, LIST, index);
-                else if(type == 1)
+                else if(type == HASH)
                     free_array(hashs, hash_cnt--, HASH, index);
-                else if(type == 2)
+                else if(type == BITMAP)
                     free_array(bitmaps, bitmap_cnt--, BITMAP, index);
             }
             else
@@ -185,7 +198,7 @@ int main(){
         }
         else if(!strcmp(arg[0], "list_size")){
             index = find_index(lists, list_cnt, LIST, arg[1]);
-            printf("%d\n", (int)list_size(lists[index].ptr));
+            printf("%lu\n", list_size(lists[index].ptr));
         }
         else if(!strcmp(arg[0], "list_max")){
             index = find_index(lists, list_cnt, LIST, arg[1]);
@@ -197,7 +210,61 @@ int main(){
             temp_list_elem = list_min(lists[index].ptr, custom_list_less_func, NULL);
             printf("%d\n", ((list_item*)temp_list_elem)->data);
         }
+        // --------------------
+        // HASH COMMANDS
+        // --------------------
+        else if(!strcmp(arg[0], "hash_insert")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            temp_hash_item = (hash_item*)malloc(sizeof(hash_item));
+            temp_hash_item->data = atoi(arg[2]);
+            hash_insert(hashs[index].ptr, &(temp_hash_item->elem));
+        }
+        else if(!strcmp(arg[0], "hash_apply")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            if(!strcmp(arg[2], "square"))
+                hash_apply(hashs[index].ptr, custom_square);
+            else
+                hash_apply(hashs[index].ptr, custom_triple);
+        }
+        else if(!strcmp(arg[0], "hash_delete")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            temp_hash_item = (hash_item*)malloc(sizeof(hash_item));
+            temp_hash_item->data = atoi(arg[2]);
+            temp_hash_elem = hash_find(hashs[index].ptr, &(temp_hash_item->elem));
+            if(temp_hash_elem != NULL)
+                hash_delete(hashs[index].ptr, temp_hash_elem);
+        }
+        else if(!strcmp(arg[0], "hash_empty")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            int result = hash_empty(hashs[index].ptr);
+            bool_to_str(result);
+        }
+        else if(!strcmp(arg[0], "hash_size")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            long unsigned int result = hash_size(hashs[index].ptr);
+            printf("%lu\n", result);
+        }
+        else if(!strcmp(arg[0], "hash_clear")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            hash_clear(hashs[index].ptr, NULL);
+        }
+        else if(!strcmp(arg[0], "hash_find")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            temp_hash_item = (hash_item*)malloc(sizeof(hash_item));
+            temp_hash_item->data = atoi(arg[2]);
 
+            temp_hash_elem = hash_find(hashs[index].ptr, &(temp_hash_item->elem));
+            temp_hash_item = hash_entry(temp_hash_elem, hash_item, elem);
+            if(temp_hash_item != NULL)
+                printf("%d\n", temp_hash_item->data);
+        }
+        else if(!strcmp(arg[0], "hash_replace")){
+            index = find_index(hashs, hash_cnt, HASH, arg[1]);
+            temp_hash_item = (hash_item*)malloc(sizeof(hash_item));
+            temp_hash_item->data = atoi(arg[2]);
+
+            hash_replace(hashs[index].ptr, &(temp_hash_item->elem));
+        }
         // --------------------
         // BITMAP COMMANDS
         // --------------------
@@ -254,9 +321,8 @@ int main(){
         else if(!strcmp(arg[0], "bitmap_count")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
             int result = bitmap_count(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]), str_to_bool(arg[4]));
-            printf("%d\n", result);
+            printf("%u\n", result);
         }
-        //not tested
         else if(!strcmp(arg[0], "bitmap_none")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
             int result = bitmap_none(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]));
@@ -282,10 +348,6 @@ int main(){
             int result = bitmap_test(bitmaps[index].ptr, atoi(arg[2]));
             bool_to_str(result);
         }
-
-        // --------------------
-        // HASH COMMANDS
-        // --------------------
 
         else
             printf("Invalid command: %s\n", arg[0]);
@@ -337,13 +399,11 @@ int find_index(void* arr, int len, int type, char* text){
     return -1;
 }
 
-void free_array(void* arr, int len, int type,int index){
-    if(type == HASH){
-        
-    }
-    else
+void free_array(void* arr, int len, int type, int index){
+    if(type == HASH)
+        hash_destroy(((my_hash*)arr)[index].ptr, NULL);
+    else if(type == BITMAP)
         bitmap_destroy(((my_bitmap*)arr)[index].ptr);
-    
     int i = 0;
     for(i = index; i < len - 1; i++){
         if(type == LIST){
@@ -403,3 +463,24 @@ int str_to_bool(char* str){
         return FALSE;
 }
 
+// ----------------------
+// HASH FUNCTIONS
+// ----------------------
+
+unsigned custom_hash_hash_func (const struct hash_elem *e, void *aux){
+    return hash_int((hash_entry(e, struct hash_item, elem))->data);
+}
+
+bool custom_hash_less_func (const struct hash_elem *a, const struct hash_elem *b, void *aux){
+    return (hash_entry(b, struct hash_item, elem))->data - (hash_entry(a, struct hash_item, elem))->data;
+}
+
+void custom_square(struct hash_elem* a, void* aux){
+    hash_item* temp = hash_entry(a, hash_item, elem);
+    temp->data = temp->data * temp->data;
+}
+
+void custom_triple(struct hash_elem* a, void* aux){
+    hash_item* temp = hash_entry(a, hash_item, elem);
+    temp->data = temp->data * temp->data * temp->data;
+}
