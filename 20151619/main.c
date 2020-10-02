@@ -320,8 +320,8 @@ int main(){
         }
         else if(!strcmp(arg[0], "bitmap_count")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
-            int result = bitmap_count(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]), str_to_bool(arg[4]));
-            printf("%u\n", result);
+            long unsigned int result = bitmap_count(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]), str_to_bool(arg[4]));
+            printf("%lu\n", result);
         }
         else if(!strcmp(arg[0], "bitmap_none")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
@@ -330,18 +330,18 @@ int main(){
         }
         else if(!strcmp(arg[0], "bitmap_scan")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
-            int result = bitmap_scan(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]), str_to_bool(arg[4]));
-            printf("%u\n", result);
+            long unsigned int result = bitmap_scan(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]), str_to_bool(arg[4]));
+            printf("%lu\n", result);
         }
         else if(!strcmp(arg[0], "bitmap_scan_and_flip")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
-            int result = bitmap_scan_and_flip(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]), str_to_bool(arg[4]));
-            printf("%u\n", result);
+            long unsigned int result = bitmap_scan_and_flip(bitmaps[index].ptr, atoi(arg[2]), atoi(arg[3]), str_to_bool(arg[4]));
+            printf("%lu\n", result);
         }
         else if(!strcmp(arg[0], "bitmap_size")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
-            int result = bitmap_size(bitmaps[index].ptr);
-            printf("%u\n", result);
+            long unsigned int result = bitmap_size(bitmaps[index].ptr);
+            printf("%lu\n", result);
         }
         else if(!strcmp(arg[0], "bitmap_test")){
             index = find_index(bitmaps, bitmap_cnt, BITMAP, arg[1]);
