@@ -246,7 +246,7 @@ int main(){
         }
         else if(!strcmp(arg[0], "hash_clear")){
             index = find_index(hashs, hash_cnt, HASH, arg[1]);
-            hash_clear(hashs[index].ptr, NULL);
+            hash_clear(hashs[index].ptr, destructor);
         }
         else if(!strcmp(arg[0], "hash_find")){
             index = find_index(hashs, hash_cnt, HASH, arg[1]);
@@ -401,7 +401,7 @@ int find_index(void* arr, int len, int type, char* text){
 
 void free_array(void* arr, int len, int type, int index){
     if(type == HASH)
-        hash_destroy(((my_hash*)arr)[index].ptr, NULL);
+        hash_destroy(((my_hash*)arr)[index].ptr, destructor);
     else if(type == BITMAP)
         bitmap_destroy(((my_bitmap*)arr)[index].ptr);
     int i = 0;
@@ -473,6 +473,10 @@ unsigned custom_hash_hash_func (const struct hash_elem *e, void *aux){
 
 bool custom_hash_less_func (const struct hash_elem *a, const struct hash_elem *b, void *aux){
     return (hash_entry(b, struct hash_item, elem))->data - (hash_entry(a, struct hash_item, elem))->data;
+}
+
+void destructor(struct hash_elem *e, void *aux) {
+	free (hash_entry(e, struct hash_item, elem));
 }
 
 void custom_square(struct hash_elem* a, void* aux){

@@ -60,5 +60,6 @@ unsigned custom_hash_hash_func (const struct hash_elem *e, void *aux);
 bool custom_hash_less_func (const struct hash_elem *a, const struct hash_elem *b, void *aux);
 void custom_square(struct hash_elem* a, void* aux);
 void custom_triple(struct hash_elem* a, void* aux);
+void destructor(struct hash_elem *e, void *aux);
 
 #endif
