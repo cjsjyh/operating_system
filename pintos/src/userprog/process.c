@@ -236,6 +236,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //-------------------------
   argc = string_split(file_name, args); 
   file = filesys_open (file_name);
+  printf("FILESYS %s\n", file_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
