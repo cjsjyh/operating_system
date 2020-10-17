@@ -78,7 +78,6 @@ main (void)
 {
   char **argv;
 
-  printf("INT MAIN!!\n");
   /* Clear BSS. */  
   bss_init ();
 

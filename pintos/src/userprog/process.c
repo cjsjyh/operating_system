@@ -31,7 +31,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-  char args[10][20];
+  char args[100][20];
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -41,9 +41,12 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
+  //printf("BEFORE Split: %s\n", file_name);
   string_split(file_name, args);
+
   tid = thread_create (args[0], PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
+    //printf("TID ERROR\n");
     palloc_free_page (fn_copy); 
   }
   return tid;
@@ -57,19 +60,24 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  
+ 
+  //printf("START PROCESS\n");
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
+  //printf("Load done\n");
+  //hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success){
+    //printf("PALLOC_FREE_PAGE FIALED\n");
     thread_exit ();
+  }
+  //printf("PALLOC_FREEE SUCCESS\n");
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -93,7 +101,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(1){  }
+  //while(1){  }
+  for(int i=0; i<1000000000; i++);
   return -1;
 }
 
@@ -103,6 +112,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -219,9 +229,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
-  int i;
+  int i, argc;
 
-  int argc;
   char args[10][20];
 
   /* Allocate and activate page directory. */
@@ -231,12 +240,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  //-------------------------
-  //HERE!!!!!!!!!!!!!!!!!!!
-  //-------------------------
   argc = string_split(file_name, args); 
   file = filesys_open (file_name);
-  printf("FILESYS %s\n", file_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -516,10 +521,11 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
-int string_split(const char* str, char result[10][20]){
+int string_split(const char* str, char result[100][20]){
+    char* temp = str;
     int count = 0;
     char *ret_ptr, *next_ptr;
-    ret_ptr = strtok_r(str, " ", &next_ptr);
+    ret_ptr = strtok_r(temp, " ", &next_ptr);
     while (ret_ptr){
         strlcpy(result[count], ret_ptr, strlen(ret_ptr)+1);
         count++;

@@ -240,6 +240,7 @@ active_pd (void)
      [IA32-v3a] 3.7.5 "Base Address of the Page Directory". */
   uintptr_t pd;
   asm volatile ("movl %%cr3, %0" : "=r" (pd));
+  printf("PAGE DIR\n");
   return ptov (pd);
 }
 
