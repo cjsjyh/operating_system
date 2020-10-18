@@ -336,11 +336,12 @@ run_actions (char **argv)
         if (argv[i] == NULL)
           PANIC ("action `%s' requires %d argument(s)", *argv, a->argc - 1);
 
+
       /* Invoke action and advance. */
+      // Triggers run_task() or others
       a->function (argv);
       argv += a->argc;
     }
-  
 }
 
 /* Prints a kernel command line help message and powers off the

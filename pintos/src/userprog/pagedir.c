@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
@@ -130,8 +131,9 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
   ASSERT (is_user_vaddr (uaddr));
   
   pte = lookup_page (pd, uaddr, false);
-  if (pte != NULL && (*pte & PTE_P) != 0)
+  if (pte != NULL && (*pte & PTE_P) != 0){
     return pte_get_page (*pte) + pg_ofs (uaddr);
+  }
   else
     return NULL;
 }
@@ -240,7 +242,6 @@ active_pd (void)
      [IA32-v3a] 3.7.5 "Base Address of the Page Directory". */
   uintptr_t pd;
   asm volatile ("movl %%cr3, %0" : "=r" (pd));
-  printf("PAGE DIR\n");
   return ptov (pd);
 }
 

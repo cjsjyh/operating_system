@@ -10,10 +10,11 @@ void check_addr(void*);
 
 void get_argument(void*, void* [], int);
 void exit(int);
-void write(int, const char*, int);
+void halt();
+int write(int, const char*, int);
 pid_t exec(const char*);
 int wait(pid_t);
-int read(int, void*, size_t);
+int read(int, uint32_t*, size_t);
 
 void
 syscall_init (void) 
@@ -36,10 +37,8 @@ syscall_handler (struct intr_frame *f)
   void* args[4];
   void* buffer;
   int syscall_type;
-  
   // Get stack pointer from interrupt frame
   esp = (uint32_t*)f->esp;
-  //printf("[ESP: %p]\n", esp);
 
   // Get system call number form stack
   syscall_type = *(uint32_t*)esp;
@@ -60,7 +59,7 @@ syscall_handler (struct intr_frame *f)
       // 1 args
       get_argument(esp, args, 1);
       check_addr(args[0]);
-      exec(args[0]);
+      f->eax = exec(*((uint32_t*)args[0]));
       break;
     case SYS_WAIT:
       // 1 args
@@ -72,13 +71,13 @@ syscall_handler (struct intr_frame *f)
       // 3 args
       get_argument(esp, args, 3);
       check_addr(args[2]);
-      read(*(int*)args[0], *(uint32_t*)args[1], *(int*)args[2]);
+      f->eax = read(*(int*)args[0], *(uint32_t*)args[1], *(int*)args[2]);
       break;
     case SYS_WRITE:
       // 3 args
       get_argument(esp, args, 3);
       check_addr(args[2]);
-      write(*(int*)args[0], (const char*)(*(uint32_t*)args[1]), *(int*)args[2]);
+      f->eax = write(*(int*)args[0], (const char*)(*(uint32_t*)args[1]), *(int*)args[2]);
       break;
     default:
       thread_exit();
@@ -126,7 +125,7 @@ int wait(pid_t pid){
 }
 
 // STDOUT
-void write(int fd, const char* buffer, int size){
+int write(int fd, const char* buffer, int size){
   //write to console
   if (fd == 1){
     putbuf(buffer, size);
@@ -135,7 +134,7 @@ void write(int fd, const char* buffer, int size){
 }
 
 // STDIN
-int read(int fd, void* buffer, size_t size){
+int read(int fd, uint32_t* buffer, size_t size){
   int i;
   if (fd == 0){
     for (i=0; i<size; i++){
@@ -143,26 +142,26 @@ int read(int fd, void* buffer, size_t size){
         break;
     }
   }
-  i = 0;
+  return i;
 }
 
 /*
 enum 
   {
     // Projects 2 and later. 
-    SYS_HALT,                   // Halt the operating system. 
-    SYS_EXIT,                   // Terminate this process. 
-    SYS_EXEC,                   // Start another process. 
-    SYS_WAIT,                   // Wait for a child process to die. 
-    SYS_CREATE,                 // Create a file. 
-    SYS_REMOVE,                 // Delete a file. 
-    SYS_OPEN,                   // Open a file. 
-    SYS_FILESIZE,               // Obtain a file's size. 
-    SYS_READ,                   // Read from a file. 
-    SYS_WRITE,                  // Write to a file. 
-    SYS_SEEK,                   // Change position in a file. 
-    SYS_TELL,                   // Report current position in a file. 
-    SYS_CLOSE,                  // Close a file. 
+    1 SYS_HALT,                   // Halt the operating system. 
+    2 SYS_EXIT,                   // Terminate this process. 
+    3 SYS_EXEC,                   // Start another process. 
+    4 SYS_WAIT,                   // Wait for a child process to die. 
+    5 SYS_CREATE,                 // Create a file. 
+    6 SYS_REMOVE,                 // Delete a file. 
+    7 SYS_OPEN,                   // Open a file. 
+    8 SYS_FILESIZE,               // Obtain a file's size. 
+    9 SYS_READ,                   // Read from a file. 
+    10 SYS_WRITE,                  // Write to a file. 
+    11 SYS_SEEK,                   // Change position in a file. 
+    12 SYS_TELL,                   // Report current position in a file. 
+    13 SYS_CLOSE,                  // Close a file. 
 
     // Project 3 and optionally project 4. 
     SYS_MMAP,                   // Map a file into memory. 

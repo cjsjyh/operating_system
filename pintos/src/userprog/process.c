@@ -20,7 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-void construct_esp(char*, void**);
+int string_split(const char*, char[100][20]);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -41,12 +41,10 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  //printf("BEFORE Split: %s\n", file_name);
   string_split(file_name, args);
 
   tid = thread_create (args[0], PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
-    //printf("TID ERROR\n");
     palloc_free_page (fn_copy); 
   }
   return tid;
@@ -61,23 +59,19 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
  
-  //printf("START PROCESS\n");
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  //printf("Load done\n");
   //hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
-    //printf("PALLOC_FREE_PAGE FIALED\n");
     thread_exit ();
   }
-  //printf("PALLOC_FREEE SUCCESS\n");
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -231,7 +225,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i, argc;
 
-  char args[10][20];
+  char args[100][20];
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -240,7 +234,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  argc = string_split(file_name, args); 
+  argc = string_split(file_name, args);
+  //for(int j=0; i<argc; i++)
+  //  printf("%s ", args[i]);
+  //printf("\n");
   file = filesys_open (file_name);
   if (file == NULL) 
     {
@@ -327,7 +324,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // -----------------------
   // CUSTOM USER STACK
   // -----------------------
-  uint32_t* args_addr[10];
+  uint32_t* args_addr[100];
   int arg_size = 0;
   int word_size = sizeof(uint32_t*);
 
