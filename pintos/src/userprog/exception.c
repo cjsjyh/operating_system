@@ -151,6 +151,12 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
  
   if(!user || !is_user_vaddr(fault_addr)){
+    /*
+    if(!user)
+      printf("Exceptions! Not user!\n");
+    else
+      printf("Exceptions! Not user address\n");
+    */
     exit(-1);
   }
 

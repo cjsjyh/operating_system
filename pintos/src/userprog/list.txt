@@ -1,13 +1,3 @@
-exec-once
-exec-multiple
-exec-any
-wait-simple
-wait-twice
-multi-recurse
-exec-missing
-wait-bad-pid
-wait-killed
-=============
 pass tests/userprog/args-none
 pass tests/userprog/args-single
 pass tests/userprog/args-multiple
@@ -51,19 +41,19 @@ FAIL tests/userprog/write-boundary
 FAIL tests/userprog/write-zero
 pass tests/userprog/write-stdin
 pass tests/userprog/write-bad-fd
-FAIL tests/userprog/exec-once
-FAIL tests/userprog/exec-arg
-FAIL tests/userprog/exec-bound
+pass tests/userprog/exec-once
+pass tests/userprog/exec-arg
+pass tests/userprog/exec-bound
 pass tests/userprog/exec-bound-2
 pass tests/userprog/exec-bound-3
-FAIL tests/userprog/exec-multiple
-FAIL tests/userprog/exec-missing
+pass tests/userprog/exec-multiple
+pass tests/userprog/exec-missing
 pass tests/userprog/exec-bad-ptr
-FAIL tests/userprog/wait-simple
+pass tests/userprog/wait-simple
 FAIL tests/userprog/wait-twice
-FAIL tests/userprog/wait-killed
-FAIL tests/userprog/wait-bad-pid
-FAIL tests/userprog/multi-recurse
+pass tests/userprog/wait-killed
+pass tests/userprog/wait-bad-pid
+pass tests/userprog/multi-recurse
 FAIL tests/userprog/multi-child-fd
 FAIL tests/userprog/rox-simple
 FAIL tests/userprog/rox-child

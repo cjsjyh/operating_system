@@ -42,14 +42,14 @@ syscall_handler (struct intr_frame *f)
 
   // Get system call number form stack
   syscall_type = *(uint32_t*)esp;
-  //printf("[ System Call #%d ]\n", syscall_type);
+  //printf("[ System Call - #%d %d ]\n", syscall_type, SYS_HALT);
   switch (syscall_type){
     case SYS_HALT:
       // 0 args
       check_addr(esp);
       halt();
       break;
-    case SYS_EXIT:
+    case SYS_EXIT: // #2
       // 1 args
       get_argument(esp, args, 1);
       check_addr(args[0]);
@@ -67,7 +67,7 @@ syscall_handler (struct intr_frame *f)
       check_addr(args[0]);
       wait(args[0]);
       break;
-    case SYS_READ:
+    case SYS_READ: // #9
       // 3 args
       get_argument(esp, args, 3);
       check_addr(args[2]);
@@ -77,6 +77,7 @@ syscall_handler (struct intr_frame *f)
       // 3 args
       get_argument(esp, args, 3);
       check_addr(args[2]);
+      //hex_dump(*(uint32_t*)args[1], *(uint32_t*)args[1], 150, true);
       f->eax = write(*(int*)args[0], (const char*)(*(uint32_t*)args[1]), *(int*)args[2]);
       break;
     default:
@@ -99,6 +100,7 @@ void get_argument(void *esp, void* args[], int count){
 void exit (int status){
   const char* name = thread_name();
   printf("%s: exit(%d)\n",name, status);
+  thread_current()->exit_status = status;
   thread_exit();
 }
 
@@ -149,19 +151,19 @@ int read(int fd, uint32_t* buffer, size_t size){
 enum 
   {
     // Projects 2 and later. 
-    1 SYS_HALT,                   // Halt the operating system. 
-    2 SYS_EXIT,                   // Terminate this process. 
-    3 SYS_EXEC,                   // Start another process. 
-    4 SYS_WAIT,                   // Wait for a child process to die. 
-    5 SYS_CREATE,                 // Create a file. 
-    6 SYS_REMOVE,                 // Delete a file. 
-    7 SYS_OPEN,                   // Open a file. 
-    8 SYS_FILESIZE,               // Obtain a file's size. 
-    9 SYS_READ,                   // Read from a file. 
-    10 SYS_WRITE,                  // Write to a file. 
-    11 SYS_SEEK,                   // Change position in a file. 
-    12 SYS_TELL,                   // Report current position in a file. 
-    13 SYS_CLOSE,                  // Close a file. 
+    0 SYS_HALT,                   // Halt the operating system. 
+    1 SYS_EXIT,                   // Terminate this process. 
+    2 SYS_EXEC,                   // Start another process. 
+    3 SYS_WAIT,                   // Wait for a child process to die. 
+    4 SYS_CREATE,                 // Create a file. 
+    5 SYS_REMOVE,                 // Delete a file. 
+    6 SYS_OPEN,                   // Open a file. 
+    7 SYS_FILESIZE,               // Obtain a file's size. 
+    8 SYS_READ,                   // Read from a file. 
+    9 SYS_WRITE,                  // Write to a file. 
+    10 SYS_SEEK,                   // Change position in a file. 
+    11 SYS_TELL,                   // Report current position in a file. 
+    12 SYS_CLOSE,                  // Close a file. 
 
     // Project 3 and optionally project 4. 
     SYS_MMAP,                   // Map a file into memory. 

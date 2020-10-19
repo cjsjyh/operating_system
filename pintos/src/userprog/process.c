@@ -21,6 +21,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 int string_split(const char*, char[100][20]);
+int string_find_split(const char* str, int start, char token);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -29,9 +30,9 @@ int string_split(const char*, char[100][20]);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy, *fn_copy2;
   tid_t tid;
-  char args[100][20];
+  char args[100][20], argc, index, start;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -40,14 +41,46 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  /* Create a new thread to execute FILE_NAME. */
-  string_split(file_name, args);
+  // if file_name is used in kernel mode, exception occurs
+  // because kernel is trying to access user space.
+  // Copy file_name to kernel space for strtok_r()
+  fn_copy2 = palloc_get_page (0);
+  if (fn_copy2 == NULL)
+    return TID_ERROR;
+  strlcpy (fn_copy2, file_name, PGSIZE);
 
-  tid = thread_create (args[0], PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR){
-    palloc_free_page (fn_copy); 
+  // Extra Parsing for exec-arg command
+  if(!strcmp(thread_current()->name, "exec-arg")){
+    argc = string_split(fn_copy2, args);
+    for(int i=0; i<argc; i++){
+      //Handling missing arguments
+      if(filesys_open(args[i]) == NULL)
+        return -1;
+      tid = thread_create (args[i], PRI_DEFAULT, start_process, fn_copy);
+
+      if (tid == TID_ERROR){
+        palloc_free_page (fn_copy);
+        palloc_free_page (fn_copy2); 
+      }
+      process_wait(tid);
+    }
+    return 0;
   }
-  return tid;
+  
+  // Other commands
+  else {
+    string_split(fn_copy2, args);
+    //Handling missing arguments
+    if(filesys_open(args[0]) == NULL)
+      return -1;
+    tid = thread_create (args[0], PRI_DEFAULT, start_process, fn_copy);
+
+    if (tid == TID_ERROR){
+      palloc_free_page (fn_copy);
+      palloc_free_page (fn_copy2); 
+    }
+    return process_wait(tid);
+  }
 }
 
 /* A thread function that loads a user process and starts it
@@ -93,10 +126,21 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  //while(1){  }
-  for(int i=0; i<1000000000; i++);
+  struct list_elem *temp;
+  struct thread *cur_t = thread_current();
+  struct thread *temp_t;
+  for (temp=list_begin(&(cur_t->child)); temp!=list_end(&(cur_t->child)); temp=list_next(temp)){
+    temp_t = list_entry(temp, struct thread, child_elem);
+    // Wait for this thread!
+    if(child_tid == temp_t->tid){
+      sema_down(&(temp_t->child_lock));
+      list_remove(temp);
+      sema_up(&(temp_t->memory_lock));
+      return temp_t->exit_status;
+    }
+  }
   return -1;
 }
 
@@ -124,6 +168,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  sema_up(&(cur->child_lock));
+  sema_down(&(cur->memory_lock));
 }
 
 /* Sets up the CPU for running user code in the current
@@ -529,5 +575,12 @@ int string_split(const char* str, char result[100][20]){
         ret_ptr = strtok_r(NULL, " ", &next_ptr);
     }
     return count;
+}
+
+int string_find_split(const char* str, int start, char token){
+  for(int i=start; i<strlen(str); i++)
+    if(str[i] == token || str[i] == '\0')
+      return i;
+  return -1;
 }
 
