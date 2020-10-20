@@ -71,6 +71,8 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+static int debug_mode = false;
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -166,6 +168,7 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
+  if(debug_mode) printf("THREAD CREATE - %s %d\n", thread_current()->name, thread_current()->tid);
   struct thread *t;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
@@ -280,6 +283,7 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  if(debug_mode) printf("THREAD EXIT - %s %d\n", thread_current()->name, thread_current()->tid);
   ASSERT (!intr_context ());
 #ifdef USERPROG
   process_exit ();

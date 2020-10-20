@@ -34,7 +34,7 @@ while True:
     results.append((test_case.strip(), p_f[0].strip()))
 fp.close()
 
-
+is_all_pass = True
 for check in proj1:
     found = False
     for result, p_f in results:
@@ -43,7 +43,10 @@ for check in proj1:
             found = True
             if(p_f != "pass"):
                 print("FAILED: ", result)
+                is_all_pass = False
     if not found:
         print("NOT FOUND: ", test_case)
 
+if (is_all_pass):
+    print("***CONGRATULATIONS! ALL PASS!***")
 

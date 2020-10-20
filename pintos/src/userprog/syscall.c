@@ -4,6 +4,7 @@
 #include "threads/vaddr.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 void check_addr(void*);
@@ -15,6 +16,8 @@ int write(int, const char*, int);
 pid_t exec(const char*);
 int wait(pid_t);
 int read(int, uint32_t*, size_t);
+
+static int debug_mode = false;
 
 void
 syscall_init (void) 
@@ -42,42 +45,41 @@ syscall_handler (struct intr_frame *f)
 
   // Get system call number form stack
   syscall_type = *(uint32_t*)esp;
-  //printf("[ System Call - #%d %d ]\n", syscall_type, SYS_HALT);
+  if(debug_mode) printf("[ %s - %d : System Call - #%d ]\n", thread_current()->name, thread_current()->tid, syscall_type);
   switch (syscall_type){
-    case SYS_HALT:
+    case SYS_HALT: // #0
       // 0 args
       check_addr(esp);
       halt();
       break;
-    case SYS_EXIT: // #2
+    case SYS_EXIT: // #1
       // 1 args
       get_argument(esp, args, 1);
       check_addr(args[0]);
       exit(*(int*)args[0]);
       break;
-    case SYS_EXEC:
+    case SYS_EXEC: // #2
       // 1 args
       get_argument(esp, args, 1);
       check_addr(args[0]);
       f->eax = exec(*((uint32_t*)args[0]));
       break;
-    case SYS_WAIT:
+    case SYS_WAIT: // #3
       // 1 args
       get_argument(esp, args, 1);
       check_addr(args[0]);
-      wait(args[0]);
+      f->eax = wait(*(int*)args[0]);
       break;
-    case SYS_READ: // #9
+    case SYS_READ: // #8
       // 3 args
       get_argument(esp, args, 3);
       check_addr(args[2]);
       f->eax = read(*(int*)args[0], *(uint32_t*)args[1], *(int*)args[2]);
       break;
-    case SYS_WRITE:
+    case SYS_WRITE: // #9
       // 3 args
       get_argument(esp, args, 3);
       check_addr(args[2]);
-      //hex_dump(*(uint32_t*)args[1], *(uint32_t*)args[1], 150, true);
       f->eax = write(*(int*)args[0], (const char*)(*(uint32_t*)args[1]), *(int*)args[2]);
       break;
     default:
@@ -111,12 +113,15 @@ void halt (){
 
 // Create child process (refer to process_execute() in userprog/process.c )
 pid_t exec(const char *cmd_line){
+  if(debug_mode) printf("SYSCALL EXEC - %s %d\n", thread_current()->name, thread_current()->tid);
   return process_execute(cmd_line);
 }
 
 // Wait child process until it finishes its work
 int wait(pid_t pid){
-  process_wait(pid);
+  if(debug_mode) printf("SYSCALL WAIT for %d\n", pid);
+  int exit_code = process_wait(pid);
+  return exit_code;
   // Check that child thread ID is valid
   
   // Get the exit status from child thread when the child thread is dead

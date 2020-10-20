@@ -23,6 +23,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 int string_split(const char*, char[100][20]);
 int string_find_split(const char* str, int start, char token);
 
+static int debug_mode = false;
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -34,6 +36,7 @@ process_execute (const char *file_name)
   tid_t tid;
   char args[100][20], argc, index, start;
 
+  if(debug_mode) printf("PROCESS EXECUTE - %s %d \n", thread_current()->name, thread_current()->tid);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -79,7 +82,7 @@ process_execute (const char *file_name)
       palloc_free_page (fn_copy);
       palloc_free_page (fn_copy2); 
     }
-    return process_wait(tid);
+    return tid;
   }
 }
 
@@ -92,13 +95,13 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
  
+  if(debug_mode) printf("START PROCESS - %s %d \n", thread_current()->name, thread_current()->tid);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  //hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -128,6 +131,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+  if(debug_mode) printf("PROCESS WAIT - %s %d \n", thread_current()->name, thread_current()->tid);
   struct list_elem *temp;
   struct thread *cur_t = thread_current();
   struct thread *temp_t;
@@ -135,13 +139,29 @@ process_wait (tid_t child_tid)
     temp_t = list_entry(temp, struct thread, child_elem);
     // Wait for this thread!
     if(child_tid == temp_t->tid){
+      if(debug_mode) printf("... start waiting for %s - %d ...\n", temp_t->name, temp_t->tid);
       sema_down(&(temp_t->child_lock));
       list_remove(temp);
       sema_up(&(temp_t->memory_lock));
+      if(debug_mode) printf("PROCESS WAIT Returning %d\n", temp_t->exit_status);
       return temp_t->exit_status;
     }
   }
+  if(debug_mode) printf("PROCESS WAIT Returning -1\n");
   return -1;
+}
+
+bool is_valid_tid (tid_t child_tid){
+  struct list_elem *temp;
+  struct thread *cur_t = thread_current();
+  struct thread *temp_t;
+  for (temp=list_begin(&(cur_t->child)); temp!=list_end(&(cur_t->child)); temp=list_next(temp)){
+    temp_t = list_entry(temp, struct thread, child_elem);
+    // Thread found
+    if(child_tid == temp_t->tid)
+      return true;
+  }
+  return false;
 }
 
 /* Free the current process's resources. */
@@ -152,6 +172,7 @@ process_exit (void)
   uint32_t *pd;
 
 
+  if(debug_mode) printf("PROCESS EXIT - %s %d \n", thread_current()->name, thread_current()->tid);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -281,9 +302,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   argc = string_split(file_name, args);
-  //for(int j=0; i<argc; i++)
-  //  printf("%s ", args[i]);
-  //printf("\n");
   file = filesys_open (file_name);
   if (file == NULL) 
     {
