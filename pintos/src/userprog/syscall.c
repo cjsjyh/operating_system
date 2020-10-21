@@ -6,6 +6,8 @@
 #include "threads/thread.h"
 #include "userprog/process.h"
 
+#define GET_MAX(a,b) (((a)>(b))?(a):(b))
+
 static void syscall_handler (struct intr_frame *);
 void check_addr(void*);
 
@@ -16,6 +18,9 @@ int write(int, const char*, int);
 pid_t exec(const char*);
 int wait(pid_t);
 int read(int, uint32_t*, size_t);
+int fibonacci(int n);
+int max_of_four_int(int a, int b, int c, int d);
+
 
 static int debug_mode = false;
 
@@ -81,6 +86,16 @@ syscall_handler (struct intr_frame *f)
       get_argument(esp, args, 3);
       check_addr(args[2]);
       f->eax = write(*(int*)args[0], (const char*)(*(uint32_t*)args[1]), *(int*)args[2]);
+      break;
+    case SYS_FIBONACCI:
+      get_argument(esp, args, 1);
+      check_addr(args[0]);
+      f->eax = fibonacci(*(int*)args[0]);
+      break;
+    case SYS_MAX_OF_FOUR_INT:
+      get_argument(esp, args, 4);
+      check_addr(args[3]);
+      f->eax = max_of_four_int(*(int*)args[0],*(int*)args[1],*(int*)args[2],*(int*)args[3]);
       break;
     default:
       thread_exit();
@@ -150,6 +165,25 @@ int read(int fd, uint32_t* buffer, size_t size){
     }
   }
   return i;
+}
+
+int fibonacci(int n){
+  int result = 1, last = 0, temp;
+  if (n==0) return 0;
+
+  for(int i=1; i<n; i++){
+    temp = result;
+    result += last;
+    last = temp;
+  }
+  return result;
+}
+
+int max_of_four_int(int a, int b, int c, int d){
+  int temp = GET_MAX(a,b);
+  temp = GET_MAX(temp, c);
+  temp = GET_MAX(temp, d);
+  return temp;
 }
 
 /*
