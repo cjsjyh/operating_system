@@ -13,12 +13,15 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "threads/malloc.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
+
+static struct list thread_fd_list;
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -94,6 +97,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init (&thread_fd_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -200,6 +204,11 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  struct thread_fd *temp_fd = (struct thread_fd*)malloc(sizeof(struct thread_fd));
+  temp_fd->tid = tid;
+  temp_fd->fd_cnt=3;
+  list_push_back(&thread_fd_list, &temp_fd->elem);
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -592,3 +601,20 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+struct thread_fd* find_thread_fd() {
+  struct list_elem *cur = list_begin(&thread_fd_list);
+  for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
+    struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
+    if(temp->tid == thread_current()->tid)
+      return temp;
+  }
+}
+
+void remove_thread_fd(int index) {
+  struct thread_fd* t_fd = find_thread_fd();
+  struct file* temp;
+  for(int i=index; i<t_fd->fd_cnt -1; i++)
+    t_fd->fd[i] = t_fd->fd[i+1];
+  t_fd->fd_cnt--;
+}

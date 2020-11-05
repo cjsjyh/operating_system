@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "synch.h"
 
+#include "filesys/file.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -108,6 +109,14 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+struct thread_fd {
+  tid_t tid;
+  struct file* fd[130];
+  int fd_cnt;
+  
+  struct list_elem elem;
+};
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -143,5 +152,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct thread_fd* find_thread_fd();
+void remove_thread_fd(int index);
 
 #endif /* threads/thread.h */

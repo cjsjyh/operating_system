@@ -1,9 +1,14 @@
-#include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+
 #include "threads/vaddr.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+
+#include "userprog/syscall.h"
 #include "userprog/process.h"
 
 #define GET_MAX(a,b) (((a)>(b))?(a):(b))
@@ -21,6 +26,13 @@ int read(int, uint32_t*, size_t);
 int fibonacci(int n);
 int max_of_four_int(int a, int b, int c, int d);
 
+bool _create(const char *file, int initial_size);
+bool _remove(const char *file);
+int _open(const char* file);
+int _filesize(int fd);
+void _seek(int fd, int position);
+int _tell(int fd);
+void _close(int fd);
 
 static int debug_mode = false;
 
@@ -97,10 +109,44 @@ syscall_handler (struct intr_frame *f)
       check_addr(args[3]);
       f->eax = max_of_four_int(*(int*)args[0],*(int*)args[1],*(int*)args[2],*(int*)args[3]);
       break;
+    case SYS_CREATE:
+      get_argument(esp, args, 2);
+      check_addr(args[1]);
+      f->eax = _create((const char*)*(uint32_t*)args[0], *(int*)args[1]);
+      break;
+    case SYS_REMOVE:
+      get_argument(esp, args, 1);
+      check_addr(args[0]);
+      f->eax = _remove((const char*)*(uint32_t*)args[0]);
+      break;
+    case SYS_OPEN:
+      get_argument(esp, args, 1);
+      check_addr(args[0]);
+      f->eax = _open((const char*)*(uint32_t*)args[0]);
+      break;
+    case SYS_FILESIZE:
+      get_argument(esp, args, 1);
+      check_addr(args[0]);
+      f->eax = _filesize(*(int*)args[0]);
+      break;
+    case SYS_SEEK:
+      get_argument(esp, args, 2);
+      check_addr(args[1]);
+      _seek(*(int*)args[0], *(int*)args[1]);
+      break;
+    case SYS_TELL:
+      get_argument(esp, args, 1);
+      check_addr(args[0]);
+      f->eax = _tell(*(int*)args[0]);
+      break;
+    case SYS_CLOSE:
+      get_argument(esp, args, 1);
+      check_addr(args[0]);
+      _close(*(int*)args[0]);
+      break;
     default:
       thread_exit();
   }
-
 }
 
 
@@ -113,8 +159,52 @@ void get_argument(void *esp, void* args[], int count){
   }
 }
 
+bool _create(const char *file, int initial_size){
+  if (file == NULL) exit(-1);
+  else if (!strcmp(file, "")) return false;
+  return filesys_create(file, initial_size);
+}
+bool _remove(const char *file){
+  if (file == NULL) exit(-1);
+  return filesys_remove(file);
+}
+int _open(const char* file){
+  if (file == NULL) exit(-1);
+  else if (!strcmp(file, "")) return -1;
+  struct file* temp = filesys_open(file);
+  if (temp == NULL) return -1;
+  struct thread_fd* t_fd = find_thread_fd();
+  t_fd->fd[t_fd->fd_cnt] = temp;
+  return t_fd->fd_cnt++;
+}
+int _filesize(int fd){
+  struct thread_fd* t_fd = find_thread_fd();
+  if (fd >= t_fd->fd_cnt) exit(-1);
+  return file_length(t_fd->fd[fd]);
+}
+void _seek(int fd, int position){
+  struct thread_fd* t_fd = find_thread_fd();
+  if (fd >= t_fd->fd_cnt) exit(-1);
+  file_seek(t_fd->fd[fd], position);
+}
+int _tell(int fd){
+  struct thread_fd* t_fd = find_thread_fd();
+  if (fd >= t_fd->fd_cnt) exit(-1);
+  return file_tell(t_fd->fd[fd]);
+}
+void _close(int fd){
+  struct thread_fd* t_fd = find_thread_fd();
+  if (fd >= t_fd->fd_cnt) exit(-1);
+  file_close(t_fd->fd[fd]);
+  remove_thread_fd(fd);
+}
+
 // Terminate the current user program, returning status to the kernel
 void exit (int status){
+  struct thread_fd* t_fd = find_thread_fd();
+  for(int i=3; i<t_fd->fd_cnt; i++)
+    _close(i);
+
   const char* name = thread_name();
   printf("%s: exit(%d)\n",name, status);
   thread_current()->exit_status = status;
@@ -148,21 +238,31 @@ int wait(pid_t pid){
 
 // STDOUT
 int write(int fd, const char* buffer, int size){
+  if (buffer == NULL) exit(-1);
   //write to console
   if (fd == 1){
     putbuf(buffer, size);
     return size;
+  } else if(fd > 2){
+    struct thread_fd* t_fd = find_thread_fd();
+    if (fd >= t_fd->fd_cnt) exit(-1);
+    return file_write(t_fd->fd[fd], buffer, size);
   }
 }
 
 // STDIN
 int read(int fd, uint32_t* buffer, size_t size){
+  if (buffer == NULL) exit(-1);
   int i;
   if (fd == 0){
     for (i=0; i<size; i++){
       if ( ((char*)buffer)[i] == '\0' )
         break;
     }
+  } else if(fd > 2){
+    struct thread_fd* t_fd = find_thread_fd();
+    if (fd >= t_fd->fd_cnt) exit(-1);
+    return file_read(t_fd->fd[fd], buffer, size);
   }
   return i;
 }
