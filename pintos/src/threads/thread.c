@@ -207,7 +207,8 @@ thread_create (const char *name, int priority,
 
   struct thread_fd *temp_fd = (struct thread_fd*)malloc(sizeof(struct thread_fd));
   temp_fd->tid = tid;
-  temp_fd->fd_cnt=3;
+  temp_fd->fd_cnt = 3;
+  for(int i=0; i<3; i++) temp_fd->fd[i] = NULL;
   list_push_back(&thread_fd_list, &temp_fd->elem);
 
   /* Add to run queue. */

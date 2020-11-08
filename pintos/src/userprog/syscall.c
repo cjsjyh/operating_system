@@ -34,7 +34,7 @@ void _seek(int fd, int position);
 int _tell(int fd);
 void _close(int fd);
 
-static int debug_mode = false;
+static int debug_mode = true;
 
 void
 syscall_init (void) 
@@ -63,6 +63,7 @@ syscall_handler (struct intr_frame *f)
   // Get system call number form stack
   syscall_type = *(uint32_t*)esp;
   if(debug_mode) printf("[ %s - %d : System Call - #%d ]\n", thread_current()->name, thread_current()->tid, syscall_type);
+  if(debug_mode) hex_dump(f->esp, f->esp, 100, 1);
   switch (syscall_type){
     case SYS_HALT: // #0
       // 0 args
@@ -139,7 +140,7 @@ syscall_handler (struct intr_frame *f)
       check_addr(args[0]);
       f->eax = _tell(*(int*)args[0]);
       break;
-    case SYS_CLOSE:
+    case SYS_CLOSE: // 12
       get_argument(esp, args, 1);
       check_addr(args[0]);
       _close(*(int*)args[0]);
@@ -171,8 +172,12 @@ bool _remove(const char *file){
 int _open(const char* file){
   if (file == NULL) exit(-1);
   else if (!strcmp(file, "")) return -1;
+
   struct file* temp = filesys_open(file);
-  if (temp == NULL) return -1;
+  if (temp == NULL) 
+    return -1;
+  if (!strcmp(thread_current()->name, file))
+    file_deny_write(temp);
   struct thread_fd* t_fd = find_thread_fd();
   t_fd->fd[t_fd->fd_cnt] = temp;
   return t_fd->fd_cnt++;
@@ -195,6 +200,7 @@ int _tell(int fd){
 void _close(int fd){
   struct thread_fd* t_fd = find_thread_fd();
   if (fd >= t_fd->fd_cnt) exit(-1);
+  if (t_fd->fd[fd] == NULL) exit(-1);
   file_close(t_fd->fd[fd]);
   remove_thread_fd(fd);
 }
@@ -227,18 +233,12 @@ int wait(pid_t pid){
   if(debug_mode) printf("SYSCALL WAIT for %d\n", pid);
   int exit_code = process_wait(pid);
   return exit_code;
-  // Check that child thread ID is valid
-  
-  // Get the exit status from child thread when the child thread is dead
-  
-  // To prevent termination of process before return from wait(), 
-  // you can use busy waiting technique or thread_yield() in threads/thread.c
-
 }
 
 // STDOUT
 int write(int fd, const char* buffer, int size){
   if (buffer == NULL) exit(-1);
+  check_addr(buffer);
   //write to console
   if (fd == 1){
     putbuf(buffer, size);
@@ -253,6 +253,7 @@ int write(int fd, const char* buffer, int size){
 // STDIN
 int read(int fd, uint32_t* buffer, size_t size){
   if (buffer == NULL) exit(-1);
+  check_addr(buffer);
   int i;
   if (fd == 0){
     for (i=0; i<size; i++){
