@@ -60,6 +60,7 @@ process_execute (const char *file_name)
       if(filesys_open(args[i]) == NULL)
         return -1;
       tid = thread_create (args[i], PRI_DEFAULT, start_process, fn_copy);
+      sema_down(&thread_current()->load_lock);
 
       if (tid == TID_ERROR){
         palloc_free_page (fn_copy);
@@ -77,6 +78,7 @@ process_execute (const char *file_name)
     if(filesys_open(args[0]) == NULL)
       return -1;
     tid = thread_create (args[0], PRI_DEFAULT, start_process, fn_copy);
+    sema_down(&thread_current()->load_lock);
 
     if (tid == TID_ERROR){
       palloc_free_page (fn_copy);
@@ -171,6 +173,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  sema_up(&thread_current()->parent->load_lock);
 
   if(debug_mode) printf("PROCESS EXIT - %s %d \n", thread_current()->name, thread_current()->tid);
   /* Destroy the current process's page directory and switch back

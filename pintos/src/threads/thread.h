@@ -97,9 +97,11 @@ struct thread
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
+    struct thread* parent;
     uint32_t *pagedir;                  /* Page directory. */
     struct semaphore child_lock;
     struct semaphore memory_lock;
+    struct semaphore load_lock;
     struct list child;
     struct list_elem child_elem;
     int exit_status;
@@ -111,7 +113,7 @@ struct thread
 
 struct thread_fd {
   tid_t tid;
-  struct file* fd[130];
+  struct file* fd[131];
   int fd_cnt;
   
   struct list_elem elem;
@@ -154,6 +156,6 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 struct thread_fd* find_thread_fd();
-void remove_thread_fd(int index);
+void remove_fd(int index);
 
 #endif /* threads/thread.h */

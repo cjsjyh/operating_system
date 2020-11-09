@@ -21,6 +21,8 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+/* Custom List */
+// When new thread is created, thread malloc a new thread_fd struct and appends to the list
 static struct list thread_fd_list;
 
 /* List of processes in THREAD_READY state, that is, processes
@@ -478,8 +480,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
 #ifdef USERPROG
+  t->parent = running_thread();
   sema_init(&(t->child_lock), 0);
   sema_init(&(t->memory_lock), 0);
+  sema_init(&(t->load_lock), 0);
   list_init(&(t->child));
   list_push_back(&(running_thread()->child), &(t->child_elem));
 #endif
@@ -603,6 +607,17 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
+// Remove current thread's fd darray from list
+// void pop_thread_fd() {
+//   struct list_elem *cur = list_begin(&thread_fd_list);
+//   for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
+//     struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
+//     if(temp->tid == thread_current()->tid)
+//       return temp;
+//   }
+// }
+
+// Find current thread's fd array
 struct thread_fd* find_thread_fd() {
   struct list_elem *cur = list_begin(&thread_fd_list);
   for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
@@ -612,7 +627,8 @@ struct thread_fd* find_thread_fd() {
   }
 }
 
-void remove_thread_fd(int index) {
+// Remove(Pull) from thread's fd array
+void remove_fd(int index) {
   struct thread_fd* t_fd = find_thread_fd();
   struct file* temp;
   for(int i=index; i<t_fd->fd_cnt -1; i++)

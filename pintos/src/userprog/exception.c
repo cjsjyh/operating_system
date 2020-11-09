@@ -150,15 +150,10 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
  
-  if(!user || !is_user_vaddr(fault_addr)){
-    /*
-    if(!user)
-      printf("Exceptions! Not user!\n");
-    else
-      printf("Exceptions! Not user address\n");
-    */
+  if(!user || !is_user_vaddr(fault_addr))
     exit(-1);
-  }
+  else if(fault_addr == 0)
+    exit(-1);
 
 
   /* To implement virtual memory, delete the rest of the function

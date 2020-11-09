@@ -4,6 +4,7 @@
 #include "threads/vaddr.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -34,12 +35,14 @@ void _seek(int fd, int position);
 int _tell(int fd);
 void _close(int fd);
 
-static int debug_mode = true;
+static int debug_mode = false;
+struct semaphore file_lock;
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  sema_init(&file_lock, 1);
 }
 
 void check_addr (void* addr){
@@ -63,7 +66,7 @@ syscall_handler (struct intr_frame *f)
   // Get system call number form stack
   syscall_type = *(uint32_t*)esp;
   if(debug_mode) printf("[ %s - %d : System Call - #%d ]\n", thread_current()->name, thread_current()->tid, syscall_type);
-  if(debug_mode) hex_dump(f->esp, f->esp, 100, 1);
+  //if(debug_mode) hex_dump(f->esp, f->esp, 100, 1);
   switch (syscall_type){
     case SYS_HALT: // #0
       // 0 args
@@ -120,7 +123,7 @@ syscall_handler (struct intr_frame *f)
       check_addr(args[0]);
       f->eax = _remove((const char*)*(uint32_t*)args[0]);
       break;
-    case SYS_OPEN:
+    case SYS_OPEN: // 6
       get_argument(esp, args, 1);
       check_addr(args[0]);
       f->eax = _open((const char*)*(uint32_t*)args[0]);
@@ -173,14 +176,19 @@ int _open(const char* file){
   if (file == NULL) exit(-1);
   else if (!strcmp(file, "")) return -1;
 
+  sema_down(&file_lock);
   struct file* temp = filesys_open(file);
-  if (temp == NULL) 
+  if (temp == NULL) {
+    sema_up(&file_lock);
     return -1;
+  }
   if (!strcmp(thread_current()->name, file))
     file_deny_write(temp);
   struct thread_fd* t_fd = find_thread_fd();
   t_fd->fd[t_fd->fd_cnt] = temp;
-  return t_fd->fd_cnt++;
+  t_fd->fd_cnt++;
+  sema_up(&file_lock);
+  return t_fd->fd_cnt - 1;
 }
 int _filesize(int fd){
   struct thread_fd* t_fd = find_thread_fd();
@@ -201,12 +209,29 @@ void _close(int fd){
   struct thread_fd* t_fd = find_thread_fd();
   if (fd >= t_fd->fd_cnt) exit(-1);
   if (t_fd->fd[fd] == NULL) exit(-1);
+  sema_down(&file_lock);
   file_close(t_fd->fd[fd]);
-  remove_thread_fd(fd);
+  remove_fd(fd);
+  sema_up(&file_lock);
 }
 
 // Terminate the current user program, returning status to the kernel
 void exit (int status){
+  // Release semaphore if this thread is holding it
+  sema_up(&file_lock);
+
+  // Call wait for all child just in case there are children that need to be collected
+  struct list_elem *temp, *temp2;
+  struct thread *cur_t = thread_current();
+  struct thread *temp_t;
+  for (temp=list_begin(&(cur_t->child)); temp!=list_end(&(cur_t->child)); temp=temp2){
+    // copy just in case temp gets deleted
+    temp2 = list_next(temp);
+    temp_t = list_entry(temp, struct thread, child_elem);
+    process_wait(temp_t->tid);
+  }
+
+  // Close all file descriptors
   struct thread_fd* t_fd = find_thread_fd();
   for(int i=3; i<t_fd->fd_cnt; i++)
     _close(i);
@@ -224,48 +249,63 @@ void halt (){
 
 // Create child process (refer to process_execute() in userprog/process.c )
 pid_t exec(const char *cmd_line){
-  if(debug_mode) printf("SYSCALL EXEC - %s %d\n", thread_current()->name, thread_current()->tid);
   return process_execute(cmd_line);
 }
 
 // Wait child process until it finishes its work
 int wait(pid_t pid){
-  if(debug_mode) printf("SYSCALL WAIT for %d\n", pid);
   int exit_code = process_wait(pid);
   return exit_code;
 }
 
 // STDOUT
 int write(int fd, const char* buffer, int size){
-  if (buffer == NULL) exit(-1);
+  int result;
+  if (buffer == NULL)
+    exit(-1);
   check_addr(buffer);
+  sema_down(&file_lock); 
   //write to console
   if (fd == 1){
     putbuf(buffer, size);
-    return size;
+    result = size;
   } else if(fd > 2){
     struct thread_fd* t_fd = find_thread_fd();
-    if (fd >= t_fd->fd_cnt) exit(-1);
-    return file_write(t_fd->fd[fd], buffer, size);
+    if (fd >= t_fd->fd_cnt){ 
+      sema_up(&file_lock);
+      exit(-1);
+    }
+    if (t_fd->fd[fd]->deny_write)
+      file_deny_write(t_fd->fd[fd]);
+    result = file_write(t_fd->fd[fd], buffer, size);
   }
+  sema_up(&file_lock);
+  return result;
 }
 
 // STDIN
 int read(int fd, uint32_t* buffer, size_t size){
+  int result;
   if (buffer == NULL) exit(-1);
   check_addr(buffer);
-  int i;
+  sema_down(&file_lock);
   if (fd == 0){
-    for (i=0; i<size; i++){
-      if ( ((char*)buffer)[i] == '\0' )
+    for (int i=0; i<size; i++){
+      if ( ((char*)buffer)[i] == '\0' ){
+        result = i;
         break;
+      }
     }
   } else if(fd > 2){
     struct thread_fd* t_fd = find_thread_fd();
-    if (fd >= t_fd->fd_cnt) exit(-1);
-    return file_read(t_fd->fd[fd], buffer, size);
+    if (fd >= t_fd->fd_cnt){ 
+      sema_up(&file_lock);
+      exit(-1);
+    }
+    result = file_read(t_fd->fd[fd], buffer, size);
   }
-  return i;
+  sema_up(&file_lock);
+  return result;
 }
 
 int fibonacci(int n){
