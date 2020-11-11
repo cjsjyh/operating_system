@@ -295,7 +295,6 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
-  if(debug_mode) printf("THREAD EXIT - %s %d\n", thread_current()->name, thread_current()->tid);
   ASSERT (!intr_context ());
 #ifdef USERPROG
   process_exit ();
@@ -608,14 +607,16 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 // Remove current thread's fd darray from list
-// void pop_thread_fd() {
-//   struct list_elem *cur = list_begin(&thread_fd_list);
-//   for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
-//     struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
-//     if(temp->tid == thread_current()->tid)
-//       return temp;
-//   }
-// }
+void pop_thread_fd() {
+  struct list_elem *cur = list_begin(&thread_fd_list);
+  for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
+    struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
+    if(temp->tid == thread_current()->tid){
+      list_remove(cur);
+      free(temp);
+    }
+  }
+}
 
 // Find current thread's fd array
 struct thread_fd* find_thread_fd() {

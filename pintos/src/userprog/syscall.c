@@ -47,6 +47,7 @@ syscall_init (void)
 
 void check_addr (void* addr){
   if (!is_user_vaddr(addr)){
+    if(debug_mode) printf("check_addr FAILED\n");
     exit(-1);
   }
   return;
@@ -65,7 +66,7 @@ syscall_handler (struct intr_frame *f)
 
   // Get system call number form stack
   syscall_type = *(uint32_t*)esp;
-  if(debug_mode) printf("[ %s - %d : System Call - #%d ]\n", thread_current()->name, thread_current()->tid, syscall_type);
+  if(debug_mode && syscall_type != 6 && syscall_type != 9) printf("[ %s - %d : System Call - #%d ]\n", thread_current()->name, thread_current()->tid, syscall_type);
   //if(debug_mode) hex_dump(f->esp, f->esp, 100, 1);
   switch (syscall_type){
     case SYS_HALT: // #0
@@ -220,24 +221,26 @@ void exit (int status){
   // Release semaphore if this thread is holding it
   sema_up(&file_lock);
 
-  // Call wait for all child just in case there are children that need to be collected
-  struct list_elem *temp, *temp2;
-  struct thread *cur_t = thread_current();
-  struct thread *temp_t;
-  for (temp=list_begin(&(cur_t->child)); temp!=list_end(&(cur_t->child)); temp=temp2){
-    // copy just in case temp gets deleted
-    temp2 = list_next(temp);
-    temp_t = list_entry(temp, struct thread, child_elem);
-    process_wait(temp_t->tid);
-  }
-
   // Close all file descriptors
   struct thread_fd* t_fd = find_thread_fd();
   for(int i=3; i<t_fd->fd_cnt; i++)
     _close(i);
 
+  // Collect Load failed child process
+  // struct list_elem *e;
+  // struct thread *t;
+  // for (e = list_begin(&thread_current()->child); e != list_end(&thread_current()->child); e = list_next(e)) {
+  //   t = list_entry(e, struct thread, child_elem);
+  //     if (t->load_status == -1) {
+  //       return process_wait(t->tid);
+  //     }
+  // }
+
   const char* name = thread_name();
-  printf("%s: exit(%d)\n",name, status);
+  if(debug_mode)
+    printf("%d- %s: exit(%d)\n", thread_current()->tid,name, status);
+  else
+    printf("%s: exit(%d)\n",name, status);
   thread_current()->exit_status = status;
   thread_exit();
 }

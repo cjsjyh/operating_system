@@ -36,7 +36,6 @@ process_execute (const char *file_name)
   tid_t tid;
   char args[100][20], argc, index, start;
 
-  if(debug_mode) printf("PROCESS EXECUTE - %s %d \n", thread_current()->name, thread_current()->tid);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -84,6 +83,18 @@ process_execute (const char *file_name)
       palloc_free_page (fn_copy);
       palloc_free_page (fn_copy2); 
     }
+    // See if child has failed to load
+    struct list_elem *e;
+    struct thread *t;
+    for (e = list_begin(&thread_current()->child); e != list_end(&thread_current()->child); e = list_next(e)) {
+      t = list_entry(e, struct thread, child_elem);
+        if (t->load_status == -1) {
+          if(debug_mode) printf("[%d] Found load failed process\n", thread_current()->tid);
+          tid = -1;
+          break;
+        }
+    }
+    if(debug_mode) printf("[%d] Process Execute Returning %d\n", thread_current()->tid, tid);
     return tid;
   }
 }
@@ -97,7 +108,6 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
  
-  if(debug_mode) printf("START PROCESS - %s %d \n", thread_current()->name, thread_current()->tid);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -108,8 +118,12 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
-    thread_exit ();
+    thread_current()->load_status = -1;
+    printf("[%d] Load failed\n", thread_current()->tid);
+    exit(-1);
   }
+  else
+    thread_current()->load_status = 1;
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -133,7 +147,6 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  if(debug_mode) printf("PROCESS WAIT - %s %d \n", thread_current()->name, thread_current()->tid);
   struct list_elem *temp;
   struct thread *cur_t = thread_current();
   struct thread *temp_t;
@@ -141,15 +154,14 @@ process_wait (tid_t child_tid)
     temp_t = list_entry(temp, struct thread, child_elem);
     // Wait for this thread!
     if(child_tid == temp_t->tid){
-      if(debug_mode) printf("... start waiting for %s - %d ...\n", temp_t->name, temp_t->tid);
       sema_down(&(temp_t->child_lock));
       list_remove(temp);
       sema_up(&(temp_t->memory_lock));
-      if(debug_mode) printf("PROCESS WAIT Returning %d\n", temp_t->exit_status);
+      if(debug_mode) printf("[%d] PROCESS %d found WAIT Returning %d\n", cur_t->tid, child_tid, temp_t->exit_status);
       return temp_t->exit_status;
     }
   }
-  if(debug_mode) printf("PROCESS WAIT Returning -1\n");
+  if(debug_mode) printf("[%d] PROCESS %d not found WAIT Returning -1\n", cur_t->tid, child_tid);
   return -1;
 }
 
@@ -170,12 +182,11 @@ bool is_valid_tid (tid_t child_tid){
 void
 process_exit (void)
 {
-  struct thread *cur = thread_current ();
+  struct thread *cur = thread_current();
   uint32_t *pd;
 
   sema_up(&thread_current()->parent->load_lock);
 
-  if(debug_mode) printf("PROCESS EXIT - %s %d \n", thread_current()->name, thread_current()->tid);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -193,6 +204,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   sema_up(&(cur->child_lock));
+  //pop_thread_fd();
   sema_down(&(cur->memory_lock));
 }
 

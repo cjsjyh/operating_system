@@ -105,6 +105,7 @@ struct thread
     struct list child;
     struct list_elem child_elem;
     int exit_status;
+    int load_status;
 #endif
 
     /* Owned by thread.c. */
@@ -156,6 +157,7 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 struct thread_fd* find_thread_fd();
+void pop_thread_fd();
 void remove_fd(int index);
 
 #endif /* threads/thread.h */

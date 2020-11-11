@@ -13,6 +13,8 @@ static long long page_fault_cnt;
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 
+static int debug_mode = true;
+
 /* Registers handlers for interrupts that can be caused by user
    programs.
 
@@ -150,10 +152,18 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
  
-  if(!user || !is_user_vaddr(fault_addr))
+  if(!user){
+    if(debug_mode) printf("Exception 1\n");
     exit(-1);
-  else if(fault_addr == 0)
+  }
+  else if(!is_user_vaddr(fault_addr)){
+    if(debug_mode) printf("Exception 2\n");
     exit(-1);
+  }
+  else if(fault_addr == 0){
+    if(debug_mode) printf("Exception 3\n");
+    exit(-1);
+  }
 
 
   /* To implement virtual memory, delete the rest of the function
