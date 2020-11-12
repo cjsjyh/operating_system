@@ -4,9 +4,9 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "synch.h"
+#include "threads/synch.h"
 
-#include "filesys/file.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -64,7 +64,7 @@ typedef int tid_t;
          few bytes in size.  It probably should stay well under 1
          kB.
 
-      2. Second, kernel stacks must not be allowed to grow too
+      2. Second, kernel stacks must not. be allowed to grow too
          large.  If a stack overflows, it will corrupt the thread
          state.  Thus, kernel functions should not allocate large
          structures or arrays as non-static local variables.  Use
@@ -95,36 +95,43 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+	struct list_elem hiselem;
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    struct thread* parent;
     uint32_t *pagedir;                  /* Page directory. */
-    struct semaphore child_lock;
-    struct semaphore memory_lock;
-    struct semaphore load_lock;
-    struct list child;
-    struct list_elem child_elem;
-    int exit_status;
-    int load_status;
-#endif
+	struct file *executable_file;
+	#endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-struct thread_fd {
-  tid_t tid;
-  struct file* fd[131];
-  int fd_cnt;
-  
-  //struct list_elem elem;
+struct fd_info
+{
+	int fd;
+	struct file* fp;
+	struct list_elem elem;
+};
+
+struct process_info
+{
+	tid_t tid;
+	int status;
+	struct semaphore sema;
+	struct semaphore load_sema;
+	int parent_tid;
+	bool live;
+	int load;		//0 load yet, 1 load sucess -1 load false
+	struct list file_list;
+	struct list_elem elem;
 };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-
+struct semaphore delete_sema;
 void thread_init (void);
 void thread_start (void);
 
@@ -142,6 +149,7 @@ tid_t thread_tid (void);
 const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
+//int thread_exit_status(int status);
 void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
@@ -156,8 +164,7 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-struct thread_fd* find_thread_fd();
-void pop_thread_fd();
-void remove_fd(int index);
-
+struct process_info *process_info_find(tid_t tid);
+struct fd_info *fd_info_find(int fd);
+int process_exit_status(int status);
 #endif /* threads/thread.h */

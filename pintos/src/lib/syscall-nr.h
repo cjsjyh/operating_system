@@ -18,7 +18,8 @@ enum
     SYS_SEEK,                   /* Change position in a file. */
     SYS_TELL,                   /* Report current position in a file. */
     SYS_CLOSE,                  /* Close a file. */
-
+	SYS_FIBONACCI,				/* Get n th fibonacci sequence */
+	SYS_MAX_OF_FOUR_INT,				/* Get sum of four integer */
     /* Project 3 and optionally project 4. */
     SYS_MMAP,                   /* Map a file into memory. */
     SYS_MUNMAP,                 /* Remove a memory mapping. */
@@ -28,10 +29,7 @@ enum
     SYS_MKDIR,                  /* Create a directory. */
     SYS_READDIR,                /* Reads a directory entry. */
     SYS_ISDIR,                  /* Tests if a fd represents a directory. */
-    SYS_INUMBER,                 /* Returns the inode number for a fd. */
-    
-    SYS_FIBONACCI,
-    SYS_MAX_OF_FOUR_INT,
+    SYS_INUMBER                 /* Returns the inode number for a fd. */
   };
 
 #endif /* lib/syscall-nr.h */

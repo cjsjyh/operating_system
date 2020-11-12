@@ -8,24 +8,19 @@
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
-#include "threads/malloc.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
-
-/* Custom List */
-// When new thread is created, thread malloc a new thread_fd struct and appends to the list
-//static struct list thread_fd_list;
-static struct thread_fd thread_fd_list[100];
-static int thread_cnt;
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -35,8 +30,11 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+static struct list process_info_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
+
 
 /* Initial thread, the thread running init.c:main(). */
 static struct thread *initial_thread;
@@ -78,7 +76,58 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-static int debug_mode = false;
+#define THREAD_DEBUG_MODE 0
+
+
+struct process_info *
+process_info_find(tid_t tid)
+{
+	sema_down(&delete_sema);
+	struct process_info *ret = NULL;
+	if(!list_empty(&process_info_list))
+	{
+		struct list_elem *cur = list_begin(&process_info_list);
+		for(;cur != list_end(&process_info_list);cur = list_next(cur))
+		{
+			struct process_info *tinfo = list_entry(cur,struct process_info,elem);
+			
+			if(tinfo->tid == tid)
+				  ret = tinfo;
+		}
+	}
+	sema_up(&delete_sema);
+	return ret;
+
+}
+
+struct fd_info *
+fd_info_find(int fd) {
+	struct process_info *pinfo = process_info_find(thread_current()->tid);
+
+	if(list_empty(&pinfo->file_list))
+		return NULL;
+
+	struct list_elem *p = list_begin(&pinfo->file_list);
+
+	for (; p!=list_end(&pinfo->file_list); p=list_next(p)) {
+		struct fd_info *finfo= list_entry(p,struct fd_info,elem);
+		if (fd==finfo->fd)
+			return finfo;
+	}
+	return NULL;
+}
+
+int
+process_exit_status(int status)
+{
+	struct process_info *p = process_info_find(thread_current()->tid);
+	if(p != NULL)
+	{
+		p->status = status;
+		p->live =false;
+	}
+	thread_exit();
+}
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -101,9 +150,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  //list_init (&thread_fd_list);
-  thread_cnt = 0;
-
+  list_init (&process_info_list);
+  sema_init (&delete_sema, 1);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -117,15 +165,15 @@ void
 thread_start (void) 
 {
   /* Create the idle thread. */
-  struct semaphore idle_started;
-  sema_init (&idle_started, 0);
-  thread_create ("idle", PRI_MIN, idle, &idle_started);
+  struct semaphore start_idle;
+  sema_init (&start_idle, 0);
+  thread_create ("idle", PRI_MIN, idle, &start_idle);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
   /* Wait for the idle thread to initialize idle_thread. */
-  sema_down (&idle_started);
+  sema_down (&start_idle);
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -177,12 +225,12 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-  if(debug_mode) printf("THREAD CREATE - %s %d\n", thread_current()->name, thread_current()->tid);
   struct thread *t;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
+  enum intr_level old_level;
 
   ASSERT (function != NULL);
 
@@ -194,6 +242,11 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+
+  /* Prepare thread for first run by initializing its stack.
+     Do this atomically so intermediate values for the 'stack' 
+     member cannot be observed. */
+  old_level = intr_disable ();
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -210,19 +263,26 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  //struct thread_fd *temp_fd = (struct thread_fd*)malloc(sizeof(struct thread_fd));
-  //temp_fd->tid = tid;
-  //temp_fd->fd_cnt = 3;
-  //for(int i=0; i<3; i++) temp_fd->fd[i] = NULL;
-  //list_push_back(&thread_fd_list, &temp_fd->elem);
-  thread_fd_list[thread_cnt].tid = tid;
-  thread_fd_list[thread_cnt].fd_cnt = 3;
-  for(int i=0; i<3; i++) thread_fd_list[thread_cnt].fd[i] = NULL;
-  printf("[%d] before PUSH %d\n", tid, thread_cnt);
-  thread_cnt++;
+  intr_set_level (old_level);
+
+  struct process_info *pnew = (struct process_info *)malloc(sizeof(struct process_info));
+
+  sema_init(&pnew->sema, 0);
+  sema_init(&pnew->load_sema,0);
+  pnew->tid = tid;
+  pnew->parent_tid = thread_current()->tid;
+  pnew->live = true;
+  pnew->load = 0;
+  list_init(&pnew->file_list);
+  list_push_back(&process_info_list,&pnew->elem);
+
+  t->executable_file = NULL;
 
   /* Add to run queue. */
-  thread_unblock (t);
+thread_unblock (t);
+
+  if(THREAD_DEBUG_MODE)
+	  printf("------------THREAD CREATE %d--------------\n",tid);
 
   return tid;
 }
@@ -297,6 +357,7 @@ thread_tid (void)
 {
   return thread_current ()->tid;
 }
+extern int sibal_cnt;
 
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
@@ -304,19 +365,42 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
+
+  if(THREAD_DEBUG_MODE)
+	  printf("----------THREAD EXIT %d-----------\n",thread_current()->tid);
 #ifdef USERPROG
+ 
   process_exit ();
 #endif
-
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+/*
+  struct process_info *pinfo = process_info_find(thread_current()->tid);
+
+  if(pinfo)
+  {
+	 while(!list_empty(&pinfo->file_list))
+	 {
+		 struct list_elem *e = list_begin(&pinfo->file_list);
+		 struct fd_info *finfo = list_entry(e,struct fd_info, elem);
+		 list_remove(e);
+
+		 file_close(finfo->fp);
+		 free(finfo);
+	 }
+	  sema_up(&pinfo->sema);
+  }
+*/
+
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
 }
+
+
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
@@ -473,8 +557,6 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
-  enum intr_level old_level;
-
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -485,19 +567,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
-#ifdef USERPROG
-  t->parent = running_thread();
-  sema_init(&(t->child_lock), 0);
-  sema_init(&(t->memory_lock), 0);
-  sema_init(&(t->load_lock), 0);
-  list_init(&(t->child));
-  list_push_back(&(running_thread()->child), &(t->child_elem));
-#endif
-
-  old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
-  intr_set_level (old_level);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -553,6 +623,8 @@ thread_schedule_tail (struct thread *prev)
   /* Mark us as running. */
   cur->status = THREAD_RUNNING;
 
+  if(THREAD_DEBUG_MODE)
+	  printf("JAEHOON THREAD RUNNING START %d\n",cur->tid);
   /* Start new time slice. */
   thread_ticks = 0;
 
@@ -613,68 +685,3 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
-
-// Remove current thread's fd darray from list
-// void pop_thread_fd() {
-//   struct list_elem *cur = list_begin(&thread_fd_list);
-//   for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
-//     struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
-//     if(temp->tid == thread_current()->tid){
-//       list_remove(cur);
-//       free(temp);
-//     }
-//   }
-// }
-
-// // Find current thread's fd array
-// struct thread_fd* find_thread_fd() {
-//   struct list_elem *cur = list_begin(&thread_fd_list);
-//   for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
-//     struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
-//     if(temp->tid == thread_current()->tid)
-//       return temp;
-//   }
-// }
-
-
-// // Remove(Pull) from thread's fd array
-// void remove_fd(int index) {
-//   struct thread_fd* t_fd = find_thread_fd();
-//   struct file* temp;
-//   for(int i=index; i<t_fd->fd_cnt -1; i++)
-//     t_fd->fd[i] = t_fd->fd[i+1];
-//   t_fd->fd_cnt--;
-// }
-
-void pop_thread_fd() {
-  for(int i=0; i<thread_cnt; i++){
-    if(thread_fd_list[i].tid == thread_current()->tid){
-      // elements after
-      for(int j=i; j<thread_cnt-1; j++){
-        thread_fd_list[j].tid = thread_fd_list[j+1].tid;
-        thread_fd_list[j].fd_cnt = thread_fd_list[j+1].fd_cnt;
-        for(int k=0; k<131; k++) thread_fd_list[j].fd[k] = thread_fd_list[j+1].fd[k];
-      }
-      printf("[%d] before POP: %d\n", thread_current()->tid, thread_cnt);
-      thread_cnt--;
-      break;
-    }
-  }
-}
-
-// Find current thread's fd array
-struct thread_fd* find_thread_fd() {
-  for(int i=0; i<thread_cnt; i++){
-    if(thread_fd_list[i].tid == thread_current()->tid)
-      return &(thread_fd_list[i]);
-  }
-}
-
-// Remove(Pull) from thread's fd array
-void remove_fd(int index) {
-  struct thread_fd* t_fd = find_thread_fd();
-  struct file* temp;
-  for(int i=index; i<t_fd->fd_cnt -1; i++)
-    t_fd->fd[i] = t_fd->fd[i+1];
-  t_fd->fd_cnt--;
-}
