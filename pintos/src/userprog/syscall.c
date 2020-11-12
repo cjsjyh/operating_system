@@ -226,15 +226,7 @@ void exit (int status){
   for(int i=3; i<t_fd->fd_cnt; i++)
     _close(i);
 
-  // Collect Load failed child process
-  // struct list_elem *e;
-  // struct thread *t;
-  // for (e = list_begin(&thread_current()->child); e != list_end(&thread_current()->child); e = list_next(e)) {
-  //   t = list_entry(e, struct thread, child_elem);
-  //     if (t->load_status == -1) {
-  //       return process_wait(t->tid);
-  //     }
-  // }
+  pop_thread_fd();
 
   const char* name = thread_name();
   if(debug_mode)

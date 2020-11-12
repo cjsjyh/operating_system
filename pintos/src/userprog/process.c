@@ -204,7 +204,6 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   sema_up(&(cur->child_lock));
-  //pop_thread_fd();
   sema_down(&(cur->memory_lock));
 }
 
@@ -311,8 +310,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
+  if (t->pagedir == NULL){
+    printf("load 1\n");
     goto done;
+  }
   process_activate ();
 
   /* Open executable file. */
@@ -343,12 +344,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
     {
       struct Elf32_Phdr phdr;
 
-      if (file_ofs < 0 || file_ofs > file_length (file))
+      if (file_ofs < 0 || file_ofs > file_length (file)){
+        printf("load 2\n");
         goto done;
+      }
       file_seek (file, file_ofs);
 
-      if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
+      if (file_read (file, &phdr, sizeof phdr) != sizeof phdr){
+        printf("load 3\n");
         goto done;
+      }
       file_ofs += sizeof phdr;
       switch (phdr.p_type) 
         {
@@ -386,19 +391,24 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
-              if (!load_segment (file, file_page, (void *) mem_page,
-                                 read_bytes, zero_bytes, writable))
+              if (!load_segment (file, file_page, (void *) mem_page,read_bytes, zero_bytes, writable)){
+                printf("load 4\n");
                 goto done;
+              }
             }
-          else
+          else{
+            printf("load 5\n");
             goto done;
+          }
           break;
         }
     }
   
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp)){
+    printf("load 6\n");
     goto done;
+  }
 
   // -----------------------
   // CUSTOM USER STACK
@@ -571,8 +581,10 @@ setup_stack (void **esp)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
-      else
+      else{
+        printf("setup stack failed\n");
         palloc_free_page (kpage);
+      }
     }
   return success;
 }

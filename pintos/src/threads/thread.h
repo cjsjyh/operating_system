@@ -117,7 +117,7 @@ struct thread_fd {
   struct file* fd[131];
   int fd_cnt;
   
-  struct list_elem elem;
+  //struct list_elem elem;
 };
 
 /* If false (default), use round-robin scheduler.

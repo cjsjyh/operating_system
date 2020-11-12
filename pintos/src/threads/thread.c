@@ -23,7 +23,9 @@
 
 /* Custom List */
 // When new thread is created, thread malloc a new thread_fd struct and appends to the list
-static struct list thread_fd_list;
+//static struct list thread_fd_list;
+static struct thread_fd thread_fd_list[100];
+static int thread_cnt;
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -99,7 +101,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  list_init (&thread_fd_list);
+  //list_init (&thread_fd_list);
+  thread_cnt = 0;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -207,11 +210,16 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  struct thread_fd *temp_fd = (struct thread_fd*)malloc(sizeof(struct thread_fd));
-  temp_fd->tid = tid;
-  temp_fd->fd_cnt = 3;
-  for(int i=0; i<3; i++) temp_fd->fd[i] = NULL;
-  list_push_back(&thread_fd_list, &temp_fd->elem);
+  //struct thread_fd *temp_fd = (struct thread_fd*)malloc(sizeof(struct thread_fd));
+  //temp_fd->tid = tid;
+  //temp_fd->fd_cnt = 3;
+  //for(int i=0; i<3; i++) temp_fd->fd[i] = NULL;
+  //list_push_back(&thread_fd_list, &temp_fd->elem);
+  thread_fd_list[thread_cnt].tid = tid;
+  thread_fd_list[thread_cnt].fd_cnt = 3;
+  for(int i=0; i<3; i++) thread_fd_list[thread_cnt].fd[i] = NULL;
+  printf("[%d] before PUSH %d\n", tid, thread_cnt);
+  thread_cnt++;
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -607,24 +615,58 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 // Remove current thread's fd darray from list
+// void pop_thread_fd() {
+//   struct list_elem *cur = list_begin(&thread_fd_list);
+//   for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
+//     struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
+//     if(temp->tid == thread_current()->tid){
+//       list_remove(cur);
+//       free(temp);
+//     }
+//   }
+// }
+
+// // Find current thread's fd array
+// struct thread_fd* find_thread_fd() {
+//   struct list_elem *cur = list_begin(&thread_fd_list);
+//   for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
+//     struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
+//     if(temp->tid == thread_current()->tid)
+//       return temp;
+//   }
+// }
+
+
+// // Remove(Pull) from thread's fd array
+// void remove_fd(int index) {
+//   struct thread_fd* t_fd = find_thread_fd();
+//   struct file* temp;
+//   for(int i=index; i<t_fd->fd_cnt -1; i++)
+//     t_fd->fd[i] = t_fd->fd[i+1];
+//   t_fd->fd_cnt--;
+// }
+
 void pop_thread_fd() {
-  struct list_elem *cur = list_begin(&thread_fd_list);
-  for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
-    struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
-    if(temp->tid == thread_current()->tid){
-      list_remove(cur);
-      free(temp);
+  for(int i=0; i<thread_cnt; i++){
+    if(thread_fd_list[i].tid == thread_current()->tid){
+      // elements after
+      for(int j=i; j<thread_cnt-1; j++){
+        thread_fd_list[j].tid = thread_fd_list[j+1].tid;
+        thread_fd_list[j].fd_cnt = thread_fd_list[j+1].fd_cnt;
+        for(int k=0; k<131; k++) thread_fd_list[j].fd[k] = thread_fd_list[j+1].fd[k];
+      }
+      printf("[%d] before POP: %d\n", thread_current()->tid, thread_cnt);
+      thread_cnt--;
+      break;
     }
   }
 }
 
 // Find current thread's fd array
 struct thread_fd* find_thread_fd() {
-  struct list_elem *cur = list_begin(&thread_fd_list);
-  for(;cur != list_end(&thread_fd_list);cur = list_next(cur)){
-    struct thread_fd *temp = list_entry(cur, struct thread_fd, elem);
-    if(temp->tid == thread_current()->tid)
-      return temp;
+  for(int i=0; i<thread_cnt; i++){
+    if(thread_fd_list[i].tid == thread_current()->tid)
+      return &(thread_fd_list[i]);
   }
 }
 
