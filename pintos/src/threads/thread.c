@@ -624,7 +624,7 @@ thread_schedule_tail (struct thread *prev)
   cur->status = THREAD_RUNNING;
 
   if(THREAD_DEBUG_MODE)
-	  printf("JAEHOON THREAD RUNNING START %d\n",cur->tid);
+	  printf("THREAD RUNNING START %d\n",cur->tid);
   /* Start new time slice. */
   thread_ticks = 0;
 
