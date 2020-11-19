@@ -17,6 +17,8 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+static struct list sleep_list;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -35,6 +37,7 @@ static void real_time_delay (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
+  list_init(&sleep_list);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -92,8 +95,13 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  enum intr_level old_level;
+  old_level = intr_disable();
+  thread_current()->wakeup_time = start + ticks;
+  list_push_back(&sleep_list, &thread_current()->elem);
+  thread_block();
+  intr_set_level(old_level);
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -171,6 +179,19 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  struct thread *t;
+  for (struct list_elem* e=list_begin(&sleep_list); e!=list_end(&sleep_list); ) {
+    t = list_entry(e, struct thread, elem);
+ 
+    if (t->wakeup_time <= ticks) {
+      e = list_remove(e);
+      thread_unblock(t);
+    } else {
+      e = list_next(e);
+    }   
+  }
+
   thread_tick ();
 }
 

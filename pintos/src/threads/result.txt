@@ -1,0 +1,7 @@
+cd build && make check
+make[1]: Entering directory '/sogang/under/cse20151619/pintos/pintos/src/threads/build'
+gcc -m32 -c ../../threads/thread.c -o threads/thread.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF threads/thread.d
+gcc -m32 -c ../../threads/interrupt.c -o threads/interrupt.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF threads/interrupt.d
+gcc -m32 -c ../../threads/synch.c -o threads/synch.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF threads/synch.d
+gcc -m32 -c ../../devices/timer.c -o devices/timer.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF devices/timer.d
+make[1]: Leaving directory '/sogang/under/cse20151619/pintos/pintos/src/threads/build'
