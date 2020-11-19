@@ -6,7 +6,7 @@ proj3 = [
     "alarm-zero",
     "alarm-negative",
     "priority-change",
-    "priority-change2",
+    "priority-change-2",
     "priority-fifo",
     "priority-preempt",
     "priority-sema",

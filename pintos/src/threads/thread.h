@@ -6,6 +6,9 @@
 #include <stdint.h>
 #include "threads/synch.h"
 
+#ifndef USERPROG
+extern bool thread_prior_aging;
+#endif
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -93,7 +96,7 @@ struct thread
    struct list_elem allelem;           /* List element for all threads list. */
 
    int64_t wakeup_time;
-   
+
    /* Shared between thread.c and synch.c. */
    struct list_elem elem;              /* List element. */
 	struct list_elem hiselem;
@@ -168,4 +171,5 @@ int thread_get_load_avg (void);
 struct process_info *process_info_find(tid_t tid);
 struct fd_info *fd_info_find(int fd);
 int process_exit_status(int status);
+bool compare_priority(const struct list_elem*, const struct list_elem*, void*);
 #endif /* threads/thread.h */

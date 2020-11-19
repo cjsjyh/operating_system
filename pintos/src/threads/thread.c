@@ -59,6 +59,10 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
+#ifndef USERPROG
+bool thread_prior_aging;
+#endif
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -196,6 +200,11 @@ thread_tick (void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+
+  #ifndef USERPROG
+  if (thread_prior_aging == true)
+    thread_aging();
+  #endif
 }
 
 /* Prints thread statistics. */
@@ -281,10 +290,11 @@ thread_create (const char *name, int priority,
   #endif
 
   /* Add to run queue. */
-thread_unblock (t);
+  thread_unblock (t);
 
-  if(THREAD_DEBUG_MODE)
-	  printf("------------THREAD CREATE %d--------------\n",tid);
+  if(priority > thread_get_priority())
+    thread_yield();
+
 
   return tid;
 }
@@ -322,7 +332,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, compare_priority, NULL);
+  //list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -416,7 +427,8 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem, compare_priority, NULL);
+    //list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -443,7 +455,12 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  int thread_priority = thread_current()->priority;
+
   thread_current ()->priority = new_priority;
+
+  if (new_priority < thread_priority)
+    thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -687,3 +704,10 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+bool compare_priority(const struct list_elem* left, const struct list_elem* right, void* aux) {
+  struct thread *thread_left = list_entry(left, struct thread, elem);
+  struct thread *thread_right = list_entry(right, struct thread, elem);
+  return thread_left->priority > thread_right->priority;
+}
+
