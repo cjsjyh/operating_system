@@ -96,6 +96,8 @@ struct thread
    struct list_elem allelem;           /* List element for all threads list. */
 
    int64_t wakeup_time;
+   int recent_cpu; // fixed-point
+   int nice; // integer
 
    /* Shared between thread.c and synch.c. */
    struct list_elem elem;              /* List element. */
@@ -172,4 +174,14 @@ struct process_info *process_info_find(tid_t tid);
 struct fd_info *fd_info_find(int fd);
 int process_exit_status(int status);
 bool compare_priority(const struct list_elem*, const struct list_elem*, void*);
+
+
+int int_to_fixed(int i);
+int fixed_to_int(int f);
+int fixed_mult(int, int);
+int fixed_div(int, int);
+void thread_aging(void);
+int get_max_priority(void);
+void update_load_and_recent_cpu(void);
+void update_priority(void);
 #endif /* threads/thread.h */

@@ -12,6 +12,9 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+
+#define FRACTION (1<<14)
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/syscall.h"
@@ -31,6 +34,8 @@ static struct list ready_list;
 static struct list all_list;
 
 static struct list process_info_list;
+// fixed-point
+static int load_avg;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -151,6 +156,7 @@ thread_init (void)
 {
   ASSERT (intr_get_level () == INTR_OFF);
 
+  load_avg = 0;
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
@@ -159,6 +165,8 @@ thread_init (void)
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
+  initial_thread->nice = 0;
+  initial_thread->recent_cpu = 0;
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
@@ -456,9 +464,10 @@ void
 thread_set_priority (int new_priority) 
 {
   int thread_priority = thread_current()->priority;
+  if (thread_mlfqs)
+    return;
 
   thread_current ()->priority = new_priority;
-
   if (new_priority < thread_priority)
     thread_yield();
 }
@@ -472,35 +481,41 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  struct thread* t = thread_current();
+  t->nice = nice;
+  t->priority = fixed_to_int(int_to_fixed(PRI_MAX) - (t->recent_cpu / 4) - (2 * int_to_fixed(t->nice)));
+  if (t->priority > PRI_MAX)
+      t->priority = PRI_MAX;
+  else if (t->priority < PRI_MIN)
+      t->priority = PRI_MIN;
+
+  if (t->priority < get_max_priority())
+      thread_yield();
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return 100 * load_avg / FRACTION;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+ return 100 * thread_current()->recent_cpu / FRACTION; 
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -587,6 +602,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+  t->recent_cpu = running_thread()->recent_cpu;
+  t->nice = running_thread()->nice;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -711,3 +729,67 @@ bool compare_priority(const struct list_elem* left, const struct list_elem* righ
   return thread_left->priority > thread_right->priority;
 }
 
+void thread_aging(){
+
+}
+
+int int_to_fixed(int i){
+  return i*FRACTION;
+}
+
+int fixed_to_int(int f){
+  return f/FRACTION;
+}
+
+// returns fixed point result
+int fixed_mult(int f1, int f2){
+  int64_t temp = f1;
+  temp = temp * f2 / FRACTION;
+  return (int)temp;
+}
+
+// returns fixed point result
+int fixed_div(int f1, int f2){
+  int64_t temp = f1;
+  temp = temp * FRACTION / f2;
+  return (int)temp;
+}
+int get_max_priority() {
+  if (!list_empty(&ready_list)){
+    struct thread *t = list_entry(list_front(&ready_list), struct thread, elem);
+    return t->priority;
+  }
+  return -1;
+}
+
+void update_load_and_recent_cpu() {
+  int ready_threads = list_size(&ready_list);
+
+  if(thread_current() != idle_thread)
+    ready_threads += 1; 
+  
+  // fixed_point
+  load_avg = (59 * load_avg / 60 + ready_threads) / 60;
+
+  for (struct list_elem* e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
+    struct thread *t = list_entry(e, struct thread, allelem);
+    if (t != idle_thread){
+      int temp = fixed_div( 2 * load_avg, 2 * load_avg + int_to_fixed(1));
+      temp = fixed_mult(temp, t->recent_cpu) + int_to_fixed(t->nice);
+      t->recent_cpu = temp;
+    }
+  }
+}
+
+void update_priority(){
+  for (struct list_elem* e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
+    struct thread *t = list_entry(e, struct thread, allelem);
+    t->priority = fixed_to_int(int_to_fixed(PRI_MAX) - (t->recent_cpu / 4) - int_to_fixed(t->nice * 2));
+    if ( t->priority > PRI_MAX )
+      t->priority = PRI_MAX;
+    else if ( t->priority < PRI_MIN )
+      t->priority = PRI_MIN;
+  }
+  if (thread_current()->priority < get_max_priority())
+    intr_yield_on_return();
+}

@@ -192,6 +192,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }   
   }
 
+  if(thread_prior_aging || thread_mlfqs){
+    thread_current()->recent_cpu += int_to_fixed(1);
+    if (timer_ticks() % TIMER_FREQ == 0)
+      update_load_and_recent_cpu();
+    if (timer_ticks() % 4 == 0)
+      update_priority();
+  }
+
   thread_tick ();
 }
 

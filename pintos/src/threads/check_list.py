@@ -11,7 +11,16 @@ proj3 = [
     "priority-preempt",
     "priority-sema",
     "priority-aging",
-    "priority-lifo"
+    "priority-lifo",
+    "mlfqs-load-1",
+    "mlfqs-load-60",
+    "mlfqs-load-avg",
+    "mlfqs-recent-1",
+    "mlfqs-fair-2",
+    "mlfqs-fair-20",
+    "mlfqs-nice-2",
+    "mlfqs-nice-10",
+    "mlfqs-block"
 ]
 
 fp = open("list.txt","r")

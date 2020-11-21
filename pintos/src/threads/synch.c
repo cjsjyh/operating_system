@@ -110,7 +110,7 @@ sema_up (struct semaphore *sema)
 {
   enum intr_level old_level;
   struct thread *t, *t_max;
-  struct list_elem *e, e_max;
+  struct list_elem *e, *e_max;
 
 
   ASSERT (sema != NULL);
