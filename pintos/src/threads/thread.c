@@ -769,7 +769,7 @@ void update_load_and_recent_cpu() {
     ready_threads += 1; 
   
   // fixed_point
-  load_avg = (59 * load_avg / 60 + ready_threads) / 60;
+  load_avg = (59 * load_avg + int_to_fixed(ready_threads)) / 60;
 
   for (struct list_elem* e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
     struct thread *t = list_entry(e, struct thread, allelem);
