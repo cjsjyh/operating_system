@@ -559,12 +559,30 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
+      struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
+      new_entry->type = VM_BIN;
+      new_entry->vaddr = upage;
+      new_entry->writeable = writeable;
+
+      new_entry->pinned = false;
+      new_entry->is_loaded = false;
+      new_entry->file = file_reopen(file);
+
+      new_entry->offset = ofs;
+      new_entry->read_bytes = page_read_bytes;
+      new_entry->zero_bytes = page_zero_bytes;
+      
+      insert_vme(&thread_current()->vm, new_entry);
+      // -------------------------
+      //         ORIGINAL
+      // -------------------------
+      /*
+      // Get a page of memory.
       uint8_t *knpage = palloc_get_page (PAL_USER);
       if (knpage == NULL)
         return false;
 
-      /* Load this page. */
+      // Load this page.
       if (file_read (file, knpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (knpage);
@@ -572,16 +590,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       memset (knpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
+      // Add the page to the process's address space.
       if (!install_page (upage, knpage, writable)) 
         {
           palloc_free_page (knpage);
           return false; 
         }
+      */
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
+      ofs += page_read_bytes;
       upage += PGSIZE;
     }
   return true;
@@ -604,6 +624,17 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+
+  struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
+  new_entry->type = VM_ANON;
+  new_entry->vaddr = pg_round_down(((uint8_t *) PHYS_BASE) - PGSIZE);
+  new_entry->writeable = true;
+
+  new_entry->pinned = true;
+  new_entry->is_loaded = true;
+  kpage->vme = vme;
+  success = insert_vme(&thread_current()->vm, vme);
+
   return success;
 }
 
