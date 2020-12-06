@@ -1,5 +1,5 @@
-#ifndef THREADS_PTE_H
-#define THREADS_PTE_H
+#ifndef VM_PAGE_H
+#define VM_PAGE_H
 
 #include <list.h>
 #include <hash.h>
@@ -16,6 +16,7 @@ struct vm_entry{
 
     False일경우해당주소에write 불가능*/
     bool is_loaded; /* 물리메모리의탑재여부를알려주는플래그*/
+    bool pinned;
     struct file* file;/* 가상주소와맵핑된파일*/
 
     /* Memory Mapped File 에서다룰예정*/
@@ -29,10 +30,16 @@ struct vm_entry{
 
     /* ‘vm_entry들을위한자료구조’ 부분에서다룰예정*/
     struct hash_elem elem; /*해시테이블Element */
-}
+};
 
 void vm_init(struct hash *vm);
-static unsigned vm_hash_func(const struct hash_elem *e, void *aux);
-static bool vm_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+unsigned vm_hash_func(const struct hash_elem *e, void *aux);
+bool vm_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+bool insert_vme(struct hash *vm, struct vm_entry *vme);
+bool delete_vme(struct hash *vm, struct vm_entry *vme);
+struct vm_entry* find_vme(void* vaddr);
+void vm_destroy(struct hash *vm);
+void vm_destructor(struct hash_elem *e, void *aux);
+
 
 #endif /* vm/page.h */

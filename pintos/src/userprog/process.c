@@ -562,7 +562,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
       new_entry->type = VM_BIN;
       new_entry->vaddr = upage;
-      new_entry->writeable = writeable;
+      new_entry->writable = writable;
 
       new_entry->pinned = false;
       new_entry->is_loaded = false;
@@ -628,12 +628,12 @@ setup_stack (void **esp)
   struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
   new_entry->type = VM_ANON;
   new_entry->vaddr = pg_round_down(((uint8_t *) PHYS_BASE) - PGSIZE);
-  new_entry->writeable = true;
+  new_entry->writable = true;
 
   new_entry->pinned = true;
   new_entry->is_loaded = true;
-  kpage->vme = vme;
-  success = insert_vme(&thread_current()->vm, vme);
+  //kpage->new_entry = new_etnry;
+  success = insert_vme(&thread_current()->vm, new_entry);
 
   return success;
 }

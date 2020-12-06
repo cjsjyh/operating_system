@@ -1,6 +1,10 @@
 #include "page.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "threads/thread.h"
+
+#include <stdlib.h>
+
 
 void vm_init(struct hash *vm)
 {
@@ -9,17 +13,17 @@ void vm_init(struct hash *vm)
 /* 인자로해시테이블과vm_hash_func과vm_less_func사용*/
 }
 
-static unsigned vm_hash_func(const struct hash_elem *e, void* aux)
+unsigned vm_hash_func(const struct hash_elem *e, void* aux)
 {
     /* hash_entry()로element에대한vm_entry구조체검색*/
     /* hash_int()를이용해서vm_entry의멤버vaddr에대한해시값을구하고반환*/
-    return hash_int((hash_entry(e, struct vm_entry, elem))->vaddr);
+    return hash_int((int)(hash_entry(e, struct vm_entry, elem))->vaddr);
 }
 
-static bool vm_less_func(const struct hash_elem *a, const struct hash_elem *b)
+bool vm_less_func(const struct hash_elem *a, const struct hash_elem *b, void* aux)
 {
     /* hash_entry()로각각의element에대한vm_entry구조체를얻은후vaddr비교(b가크다면true, a가 크다면 false)*/
-    return hash_entry(a, struct vm_entry, elem))->vaddr < (hash_entry(a, struct vm_entry, elem))->vaddr;
+    return (hash_entry(a, struct vm_entry, elem))->vaddr < (hash_entry(b, struct vm_entry, elem))->vaddr;
 }
 
 bool insert_vme(struct hash *vm, struct vm_entry *vme)
@@ -53,20 +57,21 @@ struct vm_entry* find_vme(void* vaddr)
     if (temp == NULL)
         return NULL;
     /* hash_entry()로해당hash_elem의vm_entry구조체리턴*/
-    return hash_entry(&thread_current()->vm,struct vm_entry, elem);
+
+    return hash_entry(temp, struct vm_entry, elem);
 }
 
 void vm_destroy(struct hash *vm)
 {
 /* hash_destroy()으로해시테이블의버킷리스트와vm_entry들을제거*/
-    hash_destroy(vm, vm_destructor)
+    hash_destroy(vm, vm_destructor);
 }
 
 void vm_destructor(struct hash_elem *e, void *aux UNUSED){
     struct vm_entry *vme = hash_entry(e, struct vm_entry, elem);
     if (vme->is_loaded == true){
         void* phys_addr = pagedir_get_page(thread_current()->pagedir, vme->vaddr);
-        free_page(phys_addr);
+        //free_page(phys_addr);
         pagedir_clear_page(thread_current()->pagedir, vme->vaddr);
     }
     free(vme);

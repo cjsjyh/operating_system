@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-extern bool thread_prior_aging;
+//extern bool thread_prior_aging;
 
 /* Page directory with kernel mappings only. */
 extern uint32_t *init_page_dir;
