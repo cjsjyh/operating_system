@@ -2,6 +2,7 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
+#include "filesys/file.h"
 
 #include <stdlib.h>
 
@@ -71,8 +72,14 @@ void vm_destructor(struct hash_elem *e, void *aux UNUSED){
     struct vm_entry *vme = hash_entry(e, struct vm_entry, elem);
     if (vme->is_loaded == true){
         void* phys_addr = pagedir_get_page(thread_current()->pagedir, vme->vaddr);
-        //free_page(phys_addr);
+        palloc_free_page(phys_addr);
         pagedir_clear_page(thread_current()->pagedir, vme->vaddr);
     }
     free(vme);
+}
+
+bool load_file (void* kaddr, struct vm_entry *vme){
+    int bytes = file_read_at(vme->file, kaddr, vme->read_bytes, vme->offset);
+    memset(kaddr + vme->read_bytes, 0, vme->zero_bytes);
+    return bytes == vme->read_bytes;
 }

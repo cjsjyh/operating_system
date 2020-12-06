@@ -15,6 +15,9 @@
 #define GET_MAX(a,b) (((a)>(b))?(a):(b))
 static void syscall_handler (struct intr_frame *);
 
+void check_valid_buffer(void* buffer, unsigned size, void* esp, bool to_write);
+void check_valid_string(const void* str, void* esp);
+
 #define SYSCALL_DEBUG_MODE 0
 #define HEXDUMP_DEBUG_MODE 0
 
