@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <list.h>
+
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -19,7 +21,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
-#include <list.h>
+#include "vm/page.h"
 
 #define WAIT_DEBUG_MODE 0
 #define ARG_DEBUG_MODE 0
@@ -134,6 +136,8 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  vm_init(&thread_current()->vm);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -227,6 +231,8 @@ process_exit (void)
 	 }
 	  sema_up(&pinfo->sema);
   }
+
+  vm_destroy(&cur->vm);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
