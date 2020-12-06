@@ -1,9 +1,10 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 #include "threads/thread.h"
+#include "vm/page.h"
 void syscall_init (void);
 
-void is_valid_addr(const void* addr);
+struct vm_entry* is_valid_addr(const void* addr);
 void syscall_halt(void);
 tid_t syscall_exec(char *cmd_line);
 int syscall_write(int fd, const void *buffer, unsigned size);

@@ -20,13 +20,16 @@ static void syscall_handler (struct intr_frame *);
 
 struct semaphore filesys_mutex;
 
-void is_valid_addr(const void* addr)	
+struct vm_entry* is_valid_addr(const void* addr)	
 {
 	if(!is_user_vaddr(addr))
-	{
 		syscall_exit(-1);
-	}
-	return;
+	// check if vm_entry exists
+	struct vm_entry *temp = find_vme(addr);
+	if(temp == NULL)
+		syscall_exit(-1);
+
+	return temp;
 }
 
 void
@@ -57,6 +60,7 @@ syscall_handler (struct intr_frame *f)
 		  break;
 	  case SYS_EXEC:
 		  is_valid_addr(arg+1);
+		  check_valid_string((const void *)arg[0], f->esp);
 		  f->eax = syscall_exec((char*)arg[1]);
 		  break;
 	  case SYS_WAIT:
@@ -76,19 +80,21 @@ syscall_handler (struct intr_frame *f)
 		  break;
 	case SYS_CREATE:
 		  is_valid_addr(arg+2);
+		  check_valid_string((const void *)arg[0], f->esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_create((const char*)arg[1], (unsigned)arg[2]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_REMOVE:
 		  is_valid_addr(arg+1);
-
+		  check_valid_string((const void *)arg[0], f->esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_remove((const char*)arg[1]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_OPEN:
 		  is_valid_addr(arg+1);
+		  check_valid_string((const void *)arg[0], f->esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_open((const char*)arg[1]);
 		  sema_up(&filesys_mutex);
@@ -101,12 +107,14 @@ syscall_handler (struct intr_frame *f)
 		  break;
 	case SYS_WRITE:
 		  is_valid_addr(arg+3);
+		  check_valid_buffer((void*)arg[1], (unsigned)arg[2], f->esp, true);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_write((int)arg[1],(const void*)arg[2],(unsigned)arg[3]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_READ:
 		  is_valid_addr(arg+3);
+		  check_valid_buffer((void*)arg[1], (unsigned)arg[2], f->esp, false);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_read((int)arg[1],(void*)arg[2],(unsigned)arg[3]);
 		  sema_up(&filesys_mutex);
@@ -375,4 +383,22 @@ int max_of_four_int(int a, int b, int c, int d){
   temp = GET_MAX(temp, c);
   temp = GET_MAX(temp, d);
   return temp;
+}
+
+void check_valid_buffer(void* buffer, unsigned size, void* esp, bool to_write){
+	struct vm_entry* temp;
+	for (int i=0; i<size; i++){
+		temp = is_valid_addr(buffer + i);
+		if (temp != NULL){
+			if(to_write == true && temp->writable == false)
+				syscall_exit(-1);
+		}
+		// custom
+		else
+			syscall_exit(-1);
+	}
+}
+
+void check_valid_string(const void* str, void* esp){
+	is_valid_addr(str);
 }
