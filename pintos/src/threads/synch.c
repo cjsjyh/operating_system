@@ -115,27 +115,44 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
+  sema->value++;
+
   // if (!list_empty (&sema->waiters)) 
   //   thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
 
-  if (!list_empty (&sema->waiters)) {
-    e = e_max = list_begin(&sema->waiters);
-    t_max = list_entry(e, struct thread, elem);
-    for (e = list_next(e); e != list_end(&sema->waiters); e = list_next(e)){
-      t = list_entry(e, struct thread, elem);
-      if(t_max->priority < t->priority){
-        t_max = t;
-        e_max = e;
-      }
-    }
-    list_remove(e_max);
-    thread_unblock(t_max);
-  }
+  if (!list_empty (&sema->waiters)) 
+	{
+		list_sort(&sema->waiters,compare_priority,NULL);
+		struct thread * wait_thread = list_entry (list_pop_front (&sema->waiters),struct thread, elem);
+		thread_unblock (wait_thread);
+		if(wait_thread->priority > thread_get_priority())
+		{
+			if(!intr_context())
+				thread_yield();
+			else
+				intr_yield_on_return();
+			
+		}
+	}
 
-  sema->value++;
+  // if (!list_empty (&sema->waiters)) 
+	// {
+	// 	list_sort(&sema->waiters,priority_cmp,NULL);
+	// 	struct thread * wait_thread = list_entry (list_pop_front (&sema->waiters),struct thread, elem);
+	// 	thread_unblock (wait_thread);
+	// 	if(wait_thread->priority > thread_get_priority())
+	// 	{
+	// 		if(!intr_context())
+	// 			thread_yield();
+	// 		else
+	// 			intr_yield_on_return();
+			
+	// 	}
+	// }
+
   intr_set_level (old_level);
 
-  thread_yield();
+  //thread_yield();
 }
 
 static void sema_test_helper (void *sema_);
