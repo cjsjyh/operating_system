@@ -276,7 +276,9 @@ thread_create (const char *name, int priority,
   list_init(&pnew->file_list);
   list_push_back(&process_info_list,&pnew->elem);
 
+  #ifdef USERPROG
   t->executable_file = NULL;
+  #endif
 
   /* Add to run queue. */
 thread_unblock (t);
