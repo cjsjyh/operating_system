@@ -3,7 +3,9 @@
 
 #include <round.h>
 #include <stdint.h>
+#include <stdbool.h>
 
+extern bool thread_prior_aging;
 /* Number of timer interrupts per second. */
 #define TIMER_FREQ 100
 
