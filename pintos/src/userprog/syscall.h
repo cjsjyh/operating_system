@@ -9,7 +9,7 @@ tid_t syscall_exec(char *cmd_line);
 int syscall_write(int fd, const void *buffer, unsigned size);
 int  syscall_read(int fd, void *buffer, unsigned size);
 int syscall_wait(tid_t pid);
-void syscall_exit(int status);
+void syscall_exit(int status, char*);
 int syscall_fibonacci(int n);
 int max_of_four_int(int a, int b, int c, int d);
 bool syscall_create(const char *file, unsigned initial_size);

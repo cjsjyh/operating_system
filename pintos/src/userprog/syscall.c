@@ -11,9 +11,13 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/malloc.h"
+#include "vm/page.h"
 
 #define GET_MAX(a,b) (((a)>(b))?(a):(b))
 static void syscall_handler (struct intr_frame *);
+void check_address(void *addr, void *esp);
+void check_valid_buffer(void *buffer, unsigned size, void *esp, bool to_write);
+void check_valid_string(const void *str, void *esp);
 
 #define SYSCALL_DEBUG_MODE 0
 #define HEXDUMP_DEBUG_MODE 0
@@ -24,9 +28,25 @@ void is_valid_addr(const void* addr)
 {
 	if(!is_user_vaddr(addr))
 	{
-		syscall_exit(-1);
+		syscall_exit(-1, "is_valid_addr");
 	}
 	return;
+}
+
+void check_address(void *addr, void *esp)
+{
+	struct vm_entry *vme;
+	/* if address is user_address */
+	if(is_user_vaddr(addr))
+	{
+		/* find vm_entry if can't find vm_entry, exit the process */
+		vme = find_vme(addr);
+		/* if can't find vm_entry */
+		if(vme == NULL)
+			syscall_exit(-1, "check_addr vme not found");
+	}
+	else
+		syscall_exit(-1, "check_addr not user space");
 }
 
 void
@@ -39,113 +59,146 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
- //printf ("system call!\n");
- if(HEXDUMP_DEBUG_MODE)
-	hex_dump((int)f->esp, f->esp, 150,true);
- if(SYSCALL_DEBUG_MODE)
-	printf("tid %d sys call number %d\n",thread_current()->tid,*(int*)(f->esp));
- uint32_t* arg = (uint32_t*)f->esp;
-
-
- uint32_t syscall_num = arg[0];
-
+  void *esp = f->esp;
+  check_address(esp, f->esp);
+  uint32_t* arg = (uint32_t*)f->esp;
+  uint32_t syscall_num = arg[0];
+  //printf("[%d] syscall_num %d\n", thread_current()->tid, syscall_num);
   switch(syscall_num)
   {
 	  case SYS_HALT:
-		  is_valid_addr(arg);
+	  	  check_address(arg, esp);
 		  syscall_halt();
 		  break;
 	  case SYS_EXEC:
-		  is_valid_addr(arg+1);
+	  	  check_address(arg+1, esp);
+	  	  check_valid_string((const void*)arg[1], f->esp);
 		  f->eax = syscall_exec((char*)arg[1]);
 		  break;
 	  case SYS_WAIT:
-		  is_valid_addr(arg+1);
+	  	  check_address(arg+1, esp);
 		  f->eax = syscall_wait((int)arg[1]);
 		  break;
 	case SYS_FIBONACCI:
-		  is_valid_addr(arg+1);
+		  check_address(arg+1, esp);
 		  f->eax = syscall_fibonacci((int)arg[1]);
 		  break;
     case SYS_MAX_OF_FOUR_INT:
-		  is_valid_addr(arg+4);
+		  check_address(arg+4, esp);
 		  f->eax = max_of_four_int((int)arg[1],(int)arg[2],(int)arg[3],(int)arg[4]);
+		  break;
 	case SYS_EXIT:
-		  is_valid_addr(arg+1);
-		  syscall_exit((int)arg[1]);
+		  check_address(arg+1, esp);
+		  syscall_exit((int)arg[1], "syscall exit called");
 		  break;
 	case SYS_CREATE:
-		  is_valid_addr(arg+2);
+		  check_address(arg+2, esp);
+		  check_valid_string((const void*)arg[1], f->esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_create((const char*)arg[1], (unsigned)arg[2]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_REMOVE:
-		  is_valid_addr(arg+1);
-
+		  check_address(arg+1, esp);
+		  check_valid_string((const void*)arg[1], f->esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_remove((const char*)arg[1]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_OPEN:
-		  is_valid_addr(arg+1);
+		  check_address(arg+1, esp);
+		  check_valid_string((const void*)arg[1], f->esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_open((const char*)arg[1]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_CLOSE:
-		  is_valid_addr(arg+1);
+		  check_address(arg+1, esp);
 		  sema_down(&filesys_mutex);
 		  syscall_close((int)arg[1]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_WRITE:
-		  is_valid_addr(arg+3);
+		  check_address(arg+3, esp);
+		  check_valid_buffer((void*)arg[2], (unsigned)arg[3], f->esp, false);
+		  //check_valid_string((void*)arg[2],f->esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_write((int)arg[1],(const void*)arg[2],(unsigned)arg[3]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_READ:
-		  is_valid_addr(arg+3);
+		  check_address(arg+3, esp);
+		  check_valid_buffer((void*)arg[2], (unsigned)arg[3], f->esp, true);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_read((int)arg[1],(void*)arg[2],(unsigned)arg[3]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_FILESIZE:
-		  is_valid_addr(arg+1);
+		  check_address(arg+1, esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_filesize((int)arg[1]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_SEEK:
-		  is_valid_addr(arg+2);
+		  check_address(arg+2, esp);
 		  sema_down(&filesys_mutex);
 		  syscall_seek((int)arg[1], (unsigned)arg[2]);
 		  sema_up(&filesys_mutex);
 		  break;
 	case SYS_TELL:
-		  is_valid_addr(arg+1);
+		  check_address(arg+1, esp);
 		  sema_down(&filesys_mutex);
 		  f->eax = syscall_tell((int)arg[1]);
 		  sema_up(&filesys_mutex);
 		  break;
 	}
-  if(SYSCALL_DEBUG_MODE || HEXDUMP_DEBUG_MODE)
-	  printf("-----------------------------------\n");
 }
+
+void check_valid_buffer(void *buffer, unsigned size, void *esp, bool to_write)
+{
+	struct vm_entry *vme;
+	unsigned i;
+	char *check_buffer = (char *)buffer;
+	/* check buffer */
+	for(i=0; i<size; i++)
+	{
+		//printf("Check valid buffer %u\n", check_buffer);
+		check_address((void *)check_buffer, esp);
+		vme = find_vme((void *)check_buffer);
+		if(vme != NULL)
+		{
+			/* if to_write is true, vm_entry must writable.
+			   so if to_write is true but vm_entry is not writable
+			   exit the process. */
+			if(to_write == true)
+			{
+				if(vme->writable == false)
+					syscall_exit(-1, "check_valid_buffer");
+			}
+		}
+		check_buffer++;
+	}
+}
+void check_valid_string(const void *str, void *esp)
+{
+	char *check_str = (char *)str;
+	check_address((void *)check_str,esp);
+	/* check the all string's address */
+	while(*check_str != 0)
+	{
+		check_str += 1;
+		check_address(check_str, esp);
+	}
+}
+
 
 void syscall_halt(void)
 {
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL READ\n");
 	shutdown_power_off();
 }
 
 tid_t syscall_exec(char *cmd_line)
 {
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL EXEC %s\n",cmd_line);
-	
 	int ret = -1;
 	tid_t tid = process_execute(cmd_line);
 
@@ -169,17 +222,13 @@ tid_t syscall_exec(char *cmd_line)
 
 int syscall_wait(tid_t pid)
 {
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL WAIT %d\n",pid);
-	
 	return  process_wait(pid);
 }
 
 
-void syscall_exit(int status)
+void syscall_exit(int status, char* source)
 {
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL EXIT %d\n",status);
+	//printf("SYS CALL EXIT %d [%s]\n",status, source);
 
 	const char* name = thread_name();
 	int i = 0;
@@ -197,9 +246,6 @@ void syscall_exit(int status)
 
 int syscall_fibonacci(int n)
 {
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL PIBONACCI %d\n",n);
-
 	int i;
 	int fibo[3] = {0,1,};
 	if(n <= 1)
@@ -213,23 +259,13 @@ int syscall_fibonacci(int n)
 	return fibo[(i-1)%3];
 }
 
-int syscall_sum_four(int a, int b, int c, int d)
-{
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL SUM FOUR %d %d %d %d\n",a,b,c,d);
-
-	return a+b+c+d;
-}
-
 bool syscall_create(const char *file, unsigned initial_size)
 {
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL CREATE %s %d\n",file,initial_size);
-
 	if(file == NULL)
 	{
-		syscall_exit(-1);
+		syscall_exit(-1, "syscall_create");
 	}
+	//printf("file create %s %d\n",file, initial_size);
 	return filesys_create(file,initial_size);
 }
 
@@ -239,7 +275,7 @@ bool syscall_remove(const char *file)
 		printf("SYS CALL REMOVE %s\n",file);
 	if(file == NULL)
 	{
-		syscall_exit(-1);
+		syscall_exit(-1, "syscall remove");
 	}
 
 	return filesys_remove(file);
@@ -248,15 +284,14 @@ bool syscall_remove(const char *file)
 int syscall_open(const char *filename)
 {
 	static int fd = 2;
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL OPEN %s\n",filename);
-
 	if(filename == NULL)
 		return -1;
 
 	struct file *fp = filesys_open(filename);
-	if(fp == NULL)
+	if(fp == NULL){
+		//printf("fp null\n");
 		return -1;
+	}
 
 	struct process_info *pinfo = process_info_find(thread_current()->tid);
 	struct fd_info *pnew =(struct fd_info *)malloc(sizeof(struct fd_info));
@@ -284,9 +319,6 @@ void syscall_close(int fd)
 
 int syscall_write(int fd, const void *buffer, unsigned size)
 {
-	if(SYSCALL_DEBUG_MODE)
-		printf("SYS CALL WRITE %u %p %u\n",fd,buffer,size);
-	
 	is_valid_addr(buffer);
 
 	if(fd == 1)
@@ -306,9 +338,6 @@ int syscall_write(int fd, const void *buffer, unsigned size)
 
 int syscall_read(int fd, void *buffer, unsigned size)
 {
-	if(SYSCALL_DEBUG_MODE )
-		printf("SYS CALL READ %u %p %u\n",fd,buffer,size);
-
 	is_valid_addr(buffer);
 		
 	if(fd == 0)
@@ -322,12 +351,12 @@ int syscall_read(int fd, void *buffer, unsigned size)
 	}
 
 	struct fd_info *finfo = fd_info_find(fd);
-	if(!finfo) return -1;
+	if(!finfo){
+		return -1;
+	}
 
 	struct file *fp = finfo->fp;
-
 	int ret = file_read(fp, buffer,size);
-
 	return ret;
 
 }

@@ -1,0 +1,38 @@
+cd build && make check
+make[1]: Entering directory '/sogang/under/cse20151619/pintos/pintos/src/vm/build'
+FAIL tests/vm/pt-grow-stack
+FAIL tests/vm/pt-grow-pusha
+FAIL tests/vm/pt-grow-bad
+FAIL tests/vm/pt-big-stk-obj
+FAIL tests/vm/pt-bad-addr
+FAIL tests/vm/pt-bad-read
+FAIL tests/vm/pt-write-code
+FAIL tests/vm/pt-write-code2
+FAIL tests/vm/pt-grow-stk-sc
+FAIL tests/vm/page-linear
+FAIL tests/vm/page-parallel
+FAIL tests/vm/page-merge-seq
+FAIL tests/vm/page-merge-par
+FAIL tests/vm/page-merge-stk
+FAIL tests/vm/page-merge-mm
+FAIL tests/vm/page-shuffle
+FAIL tests/vm/mmap-read
+FAIL tests/vm/mmap-close
+FAIL tests/vm/mmap-unmap
+FAIL tests/vm/mmap-overlap
+FAIL tests/vm/mmap-twice
+FAIL tests/vm/mmap-write
+FAIL tests/vm/mmap-exit
+FAIL tests/vm/mmap-shuffle
+FAIL tests/vm/mmap-bad-fd
+FAIL tests/vm/mmap-clean
+FAIL tests/vm/mmap-inherit
+FAIL tests/vm/mmap-misalign
+FAIL tests/vm/mmap-null
+FAIL tests/vm/mmap-over-code
+FAIL tests/vm/mmap-over-data
+FAIL tests/vm/mmap-over-stk
+FAIL tests/vm/mmap-remove
+FAIL tests/vm/mmap-zero
+34 of 34 tests failed.
+make[1]: Leaving directory '/sogang/under/cse20151619/pintos/pintos/src/vm/build'

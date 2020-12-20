@@ -18,8 +18,11 @@ void
 filesys_init (bool format) 
 {
   fs_device = block_get_role (BLOCK_FILESYS);
-  if (fs_device == NULL)
-    PANIC ("No file system device found, can't initialize file system.");
+  if (fs_device == NULL){
+    fs_device = block_get_role (BLOCK_SWAP);
+    if (fs_device == NULL)
+      PANIC ("No file system device found, can't initialize file system.");
+  }
 
   inode_init ();
   free_map_init ();
@@ -54,7 +57,6 @@ filesys_create (const char *name, off_t initial_size)
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
-
   return success;
 }
 
@@ -89,7 +91,7 @@ filesys_remove (const char *name)
 
   return success;
 }
-
+
 /* Formats the file system. */
 static void
 do_format (void)
