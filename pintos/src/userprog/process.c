@@ -556,8 +556,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
       new_entry->type = VM_BIN;
       new_entry->vaddr = upage;
-      if(new_entry->vaddr == NULL)
-        printf("vaddr2: %p\n", new_entry->vaddr);
       new_entry->writable = writable;
 
       new_entry->pinned = false;
@@ -627,8 +625,6 @@ setup_stack (void **esp)
   struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
   new_entry->type = VM_ANON;
   new_entry->vaddr = pg_round_down(((uint8_t *) PHYS_BASE) - PGSIZE);
-  if(new_entry->vaddr == NULL)
-    printf("vaddr1: %p\n", new_entry->vaddr);
   new_entry->writable = true;
 
   new_entry->pinned = true;
@@ -637,6 +633,53 @@ setup_stack (void **esp)
   success = insert_vme(&thread_current()->vm, new_entry);
 
   return success;
+}
+
+bool expand_stack(void *addr)
+{
+	struct vm_entry *vme;
+	struct page *stack_page;
+
+	/* check stack is fulled */
+	if((size_t)(PHYS_BASE - pg_round_down(addr)) > MAX_STACK_SIZE)
+		return false;
+
+	/* allocate vm_entry and initialize the vm_entry */
+	vme = malloc(sizeof(struct vm_entry));
+	if(vme == NULL)
+		return false;
+	vme->vaddr     = pg_round_down(addr);
+	vme->type      = VM_ANON;
+	vme->is_loaded = true;
+	vme->writable  = true;
+	vme->pinned    = true;
+	/* allocate page and initialize the page's vm_entry */
+	stack_page = alloc_page(PAL_USER);
+	if(stack_page == NULL)
+	{
+		free(vme);
+		return false;
+	}
+	stack_page->vme = vme;
+	/* setting the page table. */
+	if(install_page(vme->vaddr, stack_page->kaddr, vme->writable) == false)
+	{
+		free_page(stack_page);
+		free(vme);
+		return false;
+	}
+	/* insert vm_entry to hash_table */
+	if(insert_vme(&thread_current()->vm, vme) == false)
+	{
+		free_page(stack_page);
+		free(vme);
+		return false;
+	}
+	if(intr_context())
+	{
+		vme->pinned = false;
+	}
+	return true;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
@@ -693,6 +736,7 @@ bool handle_mm_fault(struct vm_entry *vme)
       swap_in(vme->swap_slot, new_page->kaddr);
 			break;
 		default:
+      printf("SWITCH DEFAULT\n");
 			return false;
 	}
 	/* set a page table. if fail, free the physical memory  */

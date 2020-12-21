@@ -163,11 +163,19 @@ page_fault (struct intr_frame *f)
    //    if(fault_addr == 0)
    //       syscall_exit(-1, "exceptions.c 1 fault addr");
    // }
-   check_address(fault_addr, f->esp);
 
    if (not_present == false)
       syscall_exit(-1, "exceptions.c not present");
    
+   if (fault_addr >= (f->esp - 32)){
+      bool result = expand_stack(fault_addr);
+      if (result == false)
+         syscall_exit(-1, "exceptions.c expand stack failed");
+      return;
+   }
+   
+   check_address(fault_addr, f->esp);
+
    struct vm_entry* temp = find_vme(fault_addr);
    if (temp == NULL){
       syscall_exit(-1, "exceptions.c vme not found");
