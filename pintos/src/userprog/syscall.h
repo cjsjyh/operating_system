@@ -3,6 +3,8 @@
 #include "threads/thread.h"
 void syscall_init (void);
 
+extern struct semaphore filesys_mutex;
+
 void is_valid_addr(const void* addr);
 void syscall_halt(void);
 tid_t syscall_exec(char *cmd_line);

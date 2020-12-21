@@ -4,6 +4,7 @@
 #include <list.h>
 #include <hash.h>
 #include <stdlib.h>
+#include "threads/palloc.h"
 
 //vm_entry->type에 들어감
 #define VM_BIN 0 // 바이너리 파일로부터 데이터를 로드
@@ -32,6 +33,7 @@ struct vm_entry{
     struct hash_elem elem; /*해시테이블Element */
 };
 
+
 void vm_init(struct hash *vm);
 unsigned vm_hash_func(const struct hash_elem *e, void *aux);
 bool vm_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
@@ -41,5 +43,7 @@ struct vm_entry* find_vme(void* vaddr);
 void vm_destroy(struct hash *vm);
 void vm_destructor(struct hash_elem *e, void *aux);
 bool load_file (void* kaddr, struct vm_entry *vme);
+
+
 
 #endif /* vm/page.h */
