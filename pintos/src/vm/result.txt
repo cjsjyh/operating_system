@@ -58,7 +58,9 @@ gcc -m32 -c ../../filesys/directory.c -o filesys/directory.o -g -msoft-float -O 
 gcc -m32 -c ../../filesys/inode.c -o filesys/inode.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -DVM -MMD -MF filesys/inode.d
 gcc -m32 -c ../../filesys/fsutil.c -o filesys/fsutil.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -DVM -MMD -MF filesys/fsutil.d
 gcc -m32 -c ../../vm/page.c -o vm/page.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -DVM -MMD -MF vm/page.d
-ld -melf_i386 -T threads/kernel.lds.s -o kernel.o threads/start.o threads/init.o threads/thread.o threads/switch.o threads/interrupt.o threads/intr-stubs.o threads/synch.o threads/palloc.o threads/malloc.o devices/pit.o devices/timer.o devices/kbd.o devices/vga.o devices/serial.o devices/block.o devices/partition.o devices/ide.o devices/input.o devices/intq.o devices/rtc.o devices/shutdown.o devices/speaker.o lib/debug.o lib/random.o lib/stdio.o lib/stdlib.o lib/string.o lib/arithmetic.o lib/ustar.o lib/kernel/debug.o lib/kernel/list.o lib/kernel/bitmap.o lib/kernel/hash.o lib/kernel/console.o userprog/process.o userprog/pagedir.o userprog/exception.o userprog/syscall.o userprog/gdt.o userprog/tss.o filesys/filesys.o filesys/free-map.o filesys/file.o filesys/directory.o filesys/inode.o filesys/fsutil.o vm/page.o
+gcc -m32 -c ../../vm/frame.c -o vm/frame.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -DVM -MMD -MF vm/frame.d
+gcc -m32 -c ../../vm/swap.c -o vm/swap.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -DVM -MMD -MF vm/swap.d
+ld -melf_i386 -T threads/kernel.lds.s -o kernel.o threads/start.o threads/init.o threads/thread.o threads/switch.o threads/interrupt.o threads/intr-stubs.o threads/synch.o threads/palloc.o threads/malloc.o devices/pit.o devices/timer.o devices/kbd.o devices/vga.o devices/serial.o devices/block.o devices/partition.o devices/ide.o devices/input.o devices/intq.o devices/rtc.o devices/shutdown.o devices/speaker.o lib/debug.o lib/random.o lib/stdio.o lib/stdlib.o lib/string.o lib/arithmetic.o lib/ustar.o lib/kernel/debug.o lib/kernel/list.o lib/kernel/bitmap.o lib/kernel/hash.o lib/kernel/console.o userprog/process.o userprog/pagedir.o userprog/exception.o userprog/syscall.o userprog/gdt.o userprog/tss.o filesys/filesys.o filesys/free-map.o filesys/file.o filesys/directory.o filesys/inode.o filesys/fsutil.o vm/page.o vm/frame.o vm/swap.o
 objcopy -R .note -R .comment -S kernel.o kernel.bin
 gcc -m32 -c ../../threads/loader.S -o threads/loader.o -Wa,--gstabs -nostdinc -I../.. -I../../lib 
 ld -melf_i386 -N -e 0 -Ttext 0x7c00 --oformat binary -o loader.bin threads/loader.o
@@ -179,33 +181,12 @@ gcc -m32 -z noseparate-code -Wl,--build-id=none -nostdlib -static -Wl,-T,../../l
 pintos -v -k -T 300 --qemu   -p tests/vm/page-linear -a page-linear --swap-size=4 -- -q  -f run page-linear < /dev/null 2> tests/vm/page-linear.errors > tests/vm/page-linear.output
 perl -I../.. ../../tests/vm/page-linear.ck tests/vm/page-linear tests/vm/page-linear.result
 FAIL tests/vm/page-linear
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (page-linear) begin
-  (page-linear) initialize
-  (page-linear) read pass
-  (page-linear) read/modify/write pass one
-  (page-linear) read/modify/write pass two
-  (page-linear) read pass
-  (page-linear) end
-Differences in `diff -u' format:
-  (page-linear) begin
-  (page-linear) initialize
-- (page-linear) read pass
-- (page-linear) read/modify/write pass one
-- (page-linear) read/modify/write pass two
-- (page-linear) read pass
-- (page-linear) end
-+ Page fault at 0x81b5000: not present error writing page in user context.
-+ page-linear: dying due to interrupt 0x0e (#PF Page-Fault Exception).
-+ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x804a229
-+  cr2=081b5000 error=00000006
-+  eax=081b5001 ebx=0804c9c0 ecx=0000005a edx=0824c9c0
-+  esi=00000000 edi=00000000 esp=bffffe58 ebp=bfffffbc
-+  cs=001b ds=0023 es=0023 ss=0023
-
-(Process exit codes are excluded for matching purposes.)
+Kernel panic in run: PANIC at ../../threads/synch.c:231 in lock_acquire(): assertion `!lock_held_by_current_thread (lock)' failed.
+Call stack: 0xc002a3f6 0x7163615f
+Translation of call stack:
+In kernel.o:
+0xc002a3f6: debug_panic (.../../lib/kernel/debug.c:38)
+0x7163615f: (unknown)
 gcc -m32 -c ../../tests/vm/page-parallel.c -o tests/vm/page-parallel.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/page-parallel.d
 gcc -m32 -z noseparate-code -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/page-parallel.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/page-parallel
 gcc -m32 -c ../../tests/vm/child-linear.c -o tests/vm/child-linear.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/child-linear.d
@@ -220,126 +201,24 @@ gcc -m32 -z noseparate-code -Wl,--build-id=none -nostdlib -static -Wl,-T,../../l
 pintos -v -k -T 600 --qemu   -p tests/vm/page-merge-seq -a page-merge-seq -p tests/vm/child-sort -a child-sort --swap-size=4 -- -q  -f run page-merge-seq < /dev/null 2> tests/vm/page-merge-seq.errors > tests/vm/page-merge-seq.output
 perl -I../.. ../../tests/vm/page-merge-seq.ck tests/vm/page-merge-seq tests/vm/page-merge-seq.result
 FAIL tests/vm/page-merge-seq
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (page-merge-seq) begin
-  (page-merge-seq) init
-  (page-merge-seq) sort chunk 0
-  (page-merge-seq) sort chunk 1
-  (page-merge-seq) sort chunk 2
-  (page-merge-seq) sort chunk 3
-  (page-merge-seq) sort chunk 4
-  (page-merge-seq) sort chunk 5
-  (page-merge-seq) sort chunk 6
-  (page-merge-seq) sort chunk 7
-  (page-merge-seq) sort chunk 8
-  (page-merge-seq) sort chunk 9
-  (page-merge-seq) sort chunk 10
-  (page-merge-seq) sort chunk 11
-  (page-merge-seq) sort chunk 12
-  (page-merge-seq) sort chunk 13
-  (page-merge-seq) sort chunk 14
-  (page-merge-seq) sort chunk 15
-  (page-merge-seq) merge
-  (page-merge-seq) verify
-  (page-merge-seq) success, buf_idx=1,032,192
-  (page-merge-seq) end
-Differences in `diff -u' format:
-  (page-merge-seq) begin
-  (page-merge-seq) init
-  (page-merge-seq) sort chunk 0
-  (page-merge-seq) sort chunk 1
-  (page-merge-seq) sort chunk 2
-  (page-merge-seq) sort chunk 3
-  (page-merge-seq) sort chunk 4
-  (page-merge-seq) sort chunk 5
-  (page-merge-seq) sort chunk 6
-  (page-merge-seq) sort chunk 7
-  (page-merge-seq) sort chunk 8
-  (page-merge-seq) sort chunk 9
-  (page-merge-seq) sort chunk 10
-  (page-merge-seq) sort chunk 11
-  (page-merge-seq) sort chunk 12
-  (page-merge-seq) sort chunk 13
-  (page-merge-seq) sort chunk 14
-  (page-merge-seq) sort chunk 15
-  (page-merge-seq) merge
-- (page-merge-seq) verify
-- (page-merge-seq) success, buf_idx=1,032,192
-- (page-merge-seq) end
-+ Page fault at 0x81b5000: not present error writing page in user context.
-+ page-merge-seq: dying due to interrupt 0x0e (#PF Page-Fault Exception).
-+ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x80483a7
-+  cr2=081b5000 error=00000006
-+  eax=0000006d ebx=0804cbe0 ecx=080d1d5f edx=0000006d
-+  esi=00000008 edi=00000010 esp=bfffff20 ebp=081b5001
-+  cs=001b ds=0023 es=0023 ss=0023
-
-(Process exit codes are excluded for matching purposes.)
+Kernel panic in run: PANIC at ../../threads/synch.c:231 in lock_acquire(): assertion `!lock_held_by_current_thread (lock)' failed.
+Call stack: 0xc002a3f6 0x7163615f
+Translation of call stack:
+In kernel.o:
+0xc002a3f6: debug_panic (.../../lib/kernel/debug.c:38)
+0x7163615f: (unknown)
 gcc -m32 -c ../../tests/vm/page-merge-par.c -o tests/vm/page-merge-par.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/page-merge-par.d
 gcc -m32 -c ../../tests/vm/parallel-merge.c -o tests/vm/parallel-merge.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/parallel-merge.d
 gcc -m32 -z noseparate-code -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/page-merge-par.o tests/vm/parallel-merge.o tests/arc4.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/page-merge-par
 pintos -v -k -T 600 --qemu   -p tests/vm/page-merge-par -a page-merge-par -p tests/vm/child-sort -a child-sort --swap-size=4 -- -q  -f run page-merge-par < /dev/null 2> tests/vm/page-merge-par.errors > tests/vm/page-merge-par.output
 perl -I../.. ../../tests/vm/page-merge-par.ck tests/vm/page-merge-par tests/vm/page-merge-par.result
 FAIL tests/vm/page-merge-par
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (page-merge-par) begin
-  (page-merge-par) init
-  (page-merge-par) sort chunk 0
-  (page-merge-par) sort chunk 1
-  (page-merge-par) sort chunk 2
-  (page-merge-par) sort chunk 3
-  (page-merge-par) sort chunk 4
-  (page-merge-par) sort chunk 5
-  (page-merge-par) sort chunk 6
-  (page-merge-par) sort chunk 7
-  (page-merge-par) wait for child 0
-  (page-merge-par) wait for child 1
-  (page-merge-par) wait for child 2
-  (page-merge-par) wait for child 3
-  (page-merge-par) wait for child 4
-  (page-merge-par) wait for child 5
-  (page-merge-par) wait for child 6
-  (page-merge-par) wait for child 7
-  (page-merge-par) merge
-  (page-merge-par) verify
-  (page-merge-par) success, buf_idx=1,048,576
-  (page-merge-par) end
-Differences in `diff -u' format:
-  (page-merge-par) begin
-  (page-merge-par) init
-  (page-merge-par) sort chunk 0
-  (page-merge-par) sort chunk 1
-  (page-merge-par) sort chunk 2
-  (page-merge-par) sort chunk 3
-  (page-merge-par) sort chunk 4
-  (page-merge-par) sort chunk 5
-  (page-merge-par) sort chunk 6
-  (page-merge-par) sort chunk 7
-  (page-merge-par) wait for child 0
-  (page-merge-par) wait for child 1
-  (page-merge-par) wait for child 2
-  (page-merge-par) wait for child 3
-  (page-merge-par) wait for child 4
-  (page-merge-par) wait for child 5
-  (page-merge-par) wait for child 6
-  (page-merge-par) wait for child 7
-  (page-merge-par) merge
-- (page-merge-par) verify
-- (page-merge-par) success, buf_idx=1,048,576
-- (page-merge-par) end
-+ Page fault at 0x81b5000: not present error writing page in user context.
-+ page-merge-par: dying due to interrupt 0x0e (#PF Page-Fault Exception).
-+ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x8048511
-+  cr2=081b5000 error=00000006
-+  eax=00000006 ebx=0804cd20 ecx=00000067 edx=0811a116
-+  esi=00000008 edi=081b5001 esp=bfffff20 ebp=0811a116
-+  cs=001b ds=0023 es=0023 ss=0023
-
-(Process exit codes are excluded for matching purposes.)
+Kernel panic in run: PANIC at ../../threads/synch.c:231 in lock_acquire(): assertion `!lock_held_by_current_thread (lock)' failed.
+Call stack: 0xc002a3f6 0x7163615f
+Translation of call stack:
+In kernel.o:
+0xc002a3f6: debug_panic (.../../lib/kernel/debug.c:38)
+0x7163615f: (unknown)
 gcc -m32 -c ../../tests/vm/page-merge-stk.c -o tests/vm/page-merge-stk.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/page-merge-stk.d
 gcc -m32 -z noseparate-code -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/page-merge-stk.o tests/vm/parallel-merge.o tests/arc4.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/page-merge-stk
 gcc -m32 -c ../../tests/vm/child-qsort.c -o tests/vm/child-qsort.o -g -msoft-float -O -march=i686 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/child-qsort.d

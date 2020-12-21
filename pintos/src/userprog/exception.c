@@ -166,11 +166,11 @@ page_fault (struct intr_frame *f)
    check_address(fault_addr, f->esp);
 
    if (not_present == false)
-      syscall_exit(-1, "exceptions.c 2");
+      syscall_exit(-1, "exceptions.c not present");
    
    struct vm_entry* temp = find_vme(fault_addr);
    if (temp == NULL){
-      syscall_exit(-1, "exceptions.c 3");
+      syscall_exit(-1, "exceptions.c vme not found");
    }
 
    bool is_loaded = false;

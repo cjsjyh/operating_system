@@ -36,8 +36,12 @@ void is_valid_addr(const void* addr)
 void check_address(void *addr, void *esp)
 {
 	struct vm_entry *vme;
+	uint32_t address=(unsigned int)addr;
+	uint32_t lowest_address=0x8048000;
+	uint32_t highest_address=0xc0000000;
 	/* if address is user_address */
-	if(is_user_vaddr(addr))
+	//printf("check: %p\n", addr);
+	if(address >= lowest_address && address < highest_address)
 	{
 		/* find vm_entry if can't find vm_entry, exit the process */
 		vme = find_vme(addr);
@@ -45,8 +49,22 @@ void check_address(void *addr, void *esp)
 		if(vme == NULL)
 			syscall_exit(-1, "check_addr vme not found");
 	}
-	else
-		syscall_exit(-1, "check_addr not user space");
+	else{
+		syscall_exit(-1, "check_addr addr out of bound");
+	}
+	// struct vm_entry *vme;
+	// /* if address is user_address */
+	// if(is_user_vaddr(addr))
+	// {
+	// 	/* find vm_entry if can't find vm_entry, exit the process */
+	// 	vme = find_vme(addr);
+	// 	/* if can't find vm_entry */
+	// 	if(vme == NULL)
+	// 		syscall_exit(-1, "check_addr vme not found");
+	// }
+	// else{
+	// 	syscall_exit(-1, "check_addr not user space");
+	// }
 }
 
 void
@@ -60,10 +78,11 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   void *esp = f->esp;
+  //printf("%p\n", f->esp);
+  //printf("[%d] syscall_num %d\n", thread_current()->tid, ((uint32_t*)f->esp)[0]);
   check_address(esp, f->esp);
   uint32_t* arg = (uint32_t*)f->esp;
   uint32_t syscall_num = arg[0];
-  //printf("[%d] syscall_num %d\n", thread_current()->tid, syscall_num);
   switch(syscall_num)
   {
 	  case SYS_HALT:

@@ -21,6 +21,7 @@
 #include "userprog/syscall.h"
 #include <list.h>
 #include "vm/page.h"
+#include "vm/frame.h"
 
 #define WAIT_DEBUG_MODE 0
 #define ARG_DEBUG_MODE 0
@@ -555,6 +556,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
       new_entry->type = VM_BIN;
       new_entry->vaddr = upage;
+      if(new_entry->vaddr == NULL)
+        printf("vaddr2: %p\n", new_entry->vaddr);
       new_entry->writable = writable;
 
       new_entry->pinned = false;
@@ -605,17 +608,17 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  uint8_t *kpage;
+  struct page* kpage;
   bool success = false;
 
   kpage = alloc_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage->kaddr, true);
       if (success)
         *esp = PHYS_BASE;
       else
-        free_page (kpage);
+        free_page (kpage->kaddr);
     }
 
   //----------------------
@@ -624,11 +627,13 @@ setup_stack (void **esp)
   struct vm_entry *new_entry = (struct vm_entry*)malloc(sizeof(struct vm_entry));
   new_entry->type = VM_ANON;
   new_entry->vaddr = pg_round_down(((uint8_t *) PHYS_BASE) - PGSIZE);
+  if(new_entry->vaddr == NULL)
+    printf("vaddr1: %p\n", new_entry->vaddr);
   new_entry->writable = true;
 
   new_entry->pinned = true;
   new_entry->is_loaded = true;
-  //kpage->new_entry = new_etnry;
+  kpage->vme = new_entry;
   success = insert_vme(&thread_current()->vm, new_entry);
 
   return success;
@@ -659,41 +664,41 @@ install_page (void *upage, void *kpage, bool writable)
 bool handle_mm_fault(struct vm_entry *vme)
 {
 	/* get a physical memory */
-	uint8_t *kaddr = alloc_page(PAL_USER);
-	vme->pinned = true;
+	struct page *new_page = alloc_page(PAL_USER);
+	vme->pinned = false;
 	if(vme->is_loaded == true)       // if vme is already loaded, return false
 		return false;
-	if(kaddr == NULL)
+	if(new_page == NULL)
 		return false;
 	switch(vme->type)                
 	{
 		/* if vm_entry type is VM_BIN */
 		case VM_BIN:
 			/* try to load_file to physical memory if fail, free the physical memory */
-			if(load_file(kaddr,vme) == false)
+			if(load_file(new_page->kaddr,vme) == false)
 			{
-				free_page(kaddr);
+				free_page(new_page->kaddr);
 				return false;
 			}
 			break;
 		/* if vm_entry type is VM_FILE */
 		case VM_FILE:
-			if(load_file(kaddr,vme) == false)
+			if(load_file(new_page->kaddr,vme) == false)
 			{
-				free_page(kaddr);
+				free_page(new_page->kaddr);
 				return false;
 			}
 			break;
 		case VM_ANON:
-      swap_in(vme->swap_slot, kaddr);
+      swap_in(vme->swap_slot, new_page->kaddr);
 			break;
 		default:
 			return false;
 	}
 	/* set a page table. if fail, free the physical memory  */
-	if(install_page(vme->vaddr, kaddr, vme->writable) == false)
+	if(install_page(vme->vaddr, new_page->kaddr, vme->writable) == false)
 	{
-		free_page(kaddr);
+		free_page(new_page->kaddr);
 		return false;
 	}
 	/* set vme->is_loaded is true */
