@@ -608,14 +608,14 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = alloc_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
       else
-        palloc_free_page (kpage);
+        free_page (kpage);
     }
 
   //----------------------
@@ -659,7 +659,7 @@ install_page (void *upage, void *kpage, bool writable)
 bool handle_mm_fault(struct vm_entry *vme)
 {
 	/* get a physical memory */
-	uint8_t *kaddr = palloc_get_page(PAL_USER);
+	uint8_t *kaddr = alloc_page(PAL_USER);
 	vme->pinned = true;
 	if(vme->is_loaded == true)       // if vme is already loaded, return false
 		return false;
@@ -672,7 +672,7 @@ bool handle_mm_fault(struct vm_entry *vme)
 			/* try to load_file to physical memory if fail, free the physical memory */
 			if(load_file(kaddr,vme) == false)
 			{
-				palloc_free_page(kaddr);
+				free_page(kaddr);
 				return false;
 			}
 			break;
@@ -680,11 +680,12 @@ bool handle_mm_fault(struct vm_entry *vme)
 		case VM_FILE:
 			if(load_file(kaddr,vme) == false)
 			{
-				palloc_free_page(kaddr);
+				free_page(kaddr);
 				return false;
 			}
 			break;
 		case VM_ANON:
+      swap_in(vme->swap_slot, kaddr);
 			break;
 		default:
 			return false;
@@ -692,7 +693,7 @@ bool handle_mm_fault(struct vm_entry *vme)
 	/* set a page table. if fail, free the physical memory  */
 	if(install_page(vme->vaddr, kaddr, vme->writable) == false)
 	{
-		palloc_free_page(kaddr);
+		free_page(kaddr);
 		return false;
 	}
 	/* set vme->is_loaded is true */
